@@ -1860,13 +1860,13 @@ EXPORT(int, sceGxmTextureInitCubeArbitrary) {
 
 static int init_texture_base(const char *export_name, SceGxmTexture *texture, Ptr<const void> data, SceGxmTextureFormat tex_format, unsigned int width, unsigned int height, unsigned int mipCount,
     const SceGxmTextureType &texture_type) {
+    
     if (width > 4096 || height > 4096 || mipCount > 13) {
         return RET_ERROR(SCE_GXM_ERROR_INVALID_VALUE);
-    } else if (!data) {
-        data = 0; // data can be empty to be filled out later.
     } else if (!texture) {
         return RET_ERROR(SCE_GXM_ERROR_INVALID_POINTER);
     }
+    // data can be empty to be filled out later.
 
     // Add supported formats here
 
