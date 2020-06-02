@@ -1967,8 +1967,6 @@ EXPORT(int, sceGxmTextureInitLinear, SceGxmTexture *texture, Ptr<const void> dat
 EXPORT(int, sceGxmTextureInitLinearStrided, SceGxmTexture *texture, Ptr<const void> data, SceGxmTextureFormat texFormat, uint32_t width, uint32_t height, uint32_t byteStride) {
     if (width > 4096 || height > 4096 || byteStride == 0)
         return RET_ERROR(SCE_GXM_ERROR_INVALID_VALUE);
-    else if (!data)
-        return RET_ERROR(SCE_GXM_ERROR_INVALID_ALIGNMENT);
     else if (!texture)
         return RET_ERROR(SCE_GXM_ERROR_INVALID_POINTER);
 
