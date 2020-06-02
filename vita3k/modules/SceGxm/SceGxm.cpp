@@ -1863,7 +1863,7 @@ static int init_texture_base(const char *export_name, SceGxmTexture *texture, Pt
     if (width > 4096 || height > 4096 || mipCount > 13) {
         return RET_ERROR(SCE_GXM_ERROR_INVALID_VALUE);
     } else if (!data) {
-        return RET_ERROR(SCE_GXM_ERROR_INVALID_ALIGNMENT);
+        data = 0; // data can be empty to be filled out later.
     } else if (!texture) {
         return RET_ERROR(SCE_GXM_ERROR_INVALID_POINTER);
     }
