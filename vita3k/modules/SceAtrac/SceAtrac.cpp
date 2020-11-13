@@ -25,7 +25,7 @@ EXPORT(int, sceAtracCreateDecoderGroup) {
     return UNIMPLEMENTED();
 }
 
-EXPORT(int, sceAtracDecode) {
+EXPORT(int, sceAtracDecode, int atracHandle, void *pOutputBuffer, SceUInt32 *pOutputSamples, SceUInt32 *pDecoderStatus) {
     return UNIMPLEMENTED();
 }
 
@@ -33,7 +33,7 @@ EXPORT(int, sceAtracDeleteDecoderGroup) {
     return UNIMPLEMENTED();
 }
 
-EXPORT(int, sceAtracGetContentInfo) {
+EXPORT(int, sceAtracGetContentInfo, int atracHandle, void *pContentInfo) {
     return UNIMPLEMENTED();
 }
 
@@ -81,7 +81,7 @@ EXPORT(int, sceAtracGetVacantSize) {
     return UNIMPLEMENTED();
 }
 
-EXPORT(int, sceAtracIsSubBufferNeeded) {
+EXPORT(int, sceAtracIsSubBufferNeeded, int atracHandle) {
     return UNIMPLEMENTED();
 }
 
@@ -93,19 +93,19 @@ EXPORT(int, sceAtracReleaseHandle) {
     return UNIMPLEMENTED();
 }
 
-EXPORT(int, sceAtracResetNextOutputPosition) {
+EXPORT(int, sceAtracResetNextOutputPosition, int atracHandle, SceUInt32 resetSample) {
     return UNIMPLEMENTED();
 }
 
-EXPORT(int, sceAtracSetDataAndAcquireHandle) {
+EXPORT(int, sceAtracSetDataAndAcquireHandle, SceUChar8 *pucBuffer, SceUInt32 uiReadSize, SceUInt32 uiBufferSize) {
     return UNIMPLEMENTED();
 }
 
-EXPORT(int, sceAtracSetLoopNum) {
+EXPORT(int, sceAtracSetLoopNum, int atracHandle, int loopNum) {
     return UNIMPLEMENTED();
 }
 
-EXPORT(int, sceAtracSetOutputSamples) {
+EXPORT(int, sceAtracSetOutputSamples, int atracHandle, SceUInt32 outputSamples) {
     return UNIMPLEMENTED();
 }
 

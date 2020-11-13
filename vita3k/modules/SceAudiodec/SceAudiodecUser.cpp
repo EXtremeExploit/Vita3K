@@ -77,7 +77,8 @@ struct SceAudiodecCtrl {
     Ptr<SceAudiodecInfo> info;
 };
 
-EXPORT(int, sceAudiodecClearContext) {
+// pija jaja
+EXPORT(int, sceAudiodecClearContext, SceAudiodecCtrl *ctrl) {
     return UNIMPLEMENTED();
 }
 
@@ -115,7 +116,7 @@ EXPORT(int, sceAudiodecCreateDecoder, SceAudiodecCtrl *ctrl, SceAudiodecCodec co
     }
 }
 
-EXPORT(int, sceAudiodecCreateDecoderExternal) {
+EXPORT(int, sceAudiodecCreateDecoderExternal, SceAudiodecCtrl *ctrl, SceUInt32 codecType, SceUIntVAddr vaContext, SceUInt32 contextSize) {
     return UNIMPLEMENTED();
 }
 
@@ -140,11 +141,11 @@ EXPORT(int, sceAudiodecDecode, SceAudiodecCtrl *ctrl) {
     return 0;
 }
 
-EXPORT(int, sceAudiodecDecodeNFrames) {
+EXPORT(int, sceAudiodecDecodeNFrames, SceAudiodecCtrl *ctrl, SceUInt32 nFrames) {
     return UNIMPLEMENTED();
 }
 
-EXPORT(int, sceAudiodecDecodeNStreams) {
+EXPORT(int, sceAudiodecDecodeNStreams, SceAudiodecCtrl *ctrls[], SceUInt32 nStreams) {
     return UNIMPLEMENTED();
 }
 
@@ -155,7 +156,7 @@ EXPORT(int, sceAudiodecDeleteDecoder, SceAudiodecCtrl *ctrl) {
     return 0;
 }
 
-EXPORT(int, sceAudiodecDeleteDecoderExternal) {
+EXPORT(int, sceAudiodecDeleteDecoderExternal, SceAudiodecCtrl *ctrl, SceUIntVAddr *pvaContext) {
     return UNIMPLEMENTED();
 }
 
@@ -163,16 +164,15 @@ EXPORT(int, sceAudiodecDeleteDecoderResident) {
     return UNIMPLEMENTED();
 }
 
-EXPORT(int, sceAudiodecGetContextSize) {
-    STUBBED("fake size");
-    return 53;
+EXPORT(int, sceAudiodecGetContextSize, SceAudiodecCtrl *ctrl, SceUInt32 codecType) {
+    return ctrl->info.get(host.mem)->size;
 }
 
-EXPORT(int, sceAudiodecGetInternalError) {
+EXPORT(int, sceAudiodecGetInternalError, SceAudiodecCtrl *ctrl, SceInt32 *pInternalError) {
     return UNIMPLEMENTED();
 }
 
-EXPORT(int, sceAudiodecInitLibrary) {
+EXPORT(int, sceAudiodecInitLibrary, SceUInt32 codecType, void *pInitParam) {
     return STUBBED("EMPTY");
 }
 
@@ -180,7 +180,7 @@ EXPORT(int, sceAudiodecPartlyDecode) {
     return UNIMPLEMENTED();
 }
 
-EXPORT(int, sceAudiodecTermLibrary) {
+EXPORT(int, sceAudiodecTermLibrary, SceUInt32 codecType) {
     return STUBBED("EMPTY");
 }
 
