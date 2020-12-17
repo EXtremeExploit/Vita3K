@@ -248,6 +248,9 @@ void draw_settings_dialog(GuiState &gui, HostState &host) {
         ImGui::Checkbox("Disable experimental ngs support", &host.cfg.disable_ngs);
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Disable experimental support for advanced audio library ngs");
+        ImGui::Checkbox("Show Console", &host.cfg.show_console);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Show the console that displays debug information");
         ImGui::Separator();
         ImGui::TextColored(GUI_COLOR_TEXT_MENUBAR, "Emulated System Storage Folder");
         ImGui::Spacing();

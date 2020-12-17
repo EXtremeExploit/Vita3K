@@ -36,6 +36,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#include <consoleapi.h>
+#include <consoleapi3.h>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -518,6 +520,14 @@ void draw_live_area(GuiState &gui, HostState &host) {
 }
 
 void draw_ui(GuiState &gui, HostState &host) {
+    if (host.cfg.show_console == false) {
+        HWND wnd = GetConsoleWindow();
+        FreeConsole();
+        PostMessage(wnd, WM_CLOSE, 0, 0);
+    } else {
+        AllocConsole();
+    }
+
     draw_main_menu_bar(gui, host);
 
     ImGui::PushFont(gui.monospaced_font);
