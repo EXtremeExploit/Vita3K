@@ -139,4 +139,13 @@ jobs:
           ghr_v0.14.0_linux_amd64/ghr -u Vita3K -r Vita3K -recreate -n 'Automatic CI builds' -b "Corresponding commit: ${{ github.sha }}" continuous artifacts/
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-       
+      - name: Update AUR bin package
+        uses: KSXGitHub/github-actions-deploy-aur@v2.2.5
+        with:
+          pkgname: vita3k-bin
+          pkgbuild: ./PKGBUILD
+          commit_username: ${{ secrets.AUR_USERNAME }}
+          commit_email: ${{ secrets.AUR_EMAIL }}
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: Update AUR package
+          ssh_keyscan_types: rsa,dsa,ecdsa,ed25519
