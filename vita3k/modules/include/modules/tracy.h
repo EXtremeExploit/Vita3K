@@ -81,6 +81,8 @@ inline std::string to_debug_str(const MemState &mem) {
 
 #define __ARGS_WITH_COMMA(...) , ##__VA_ARGS__
 
+#pragma warning(push)
+#pragma warning(disable : 4003) // This warning is SUPER annoying, shut the warning up c:
 #define __TRACY_LOG_ARG_IF(arg)                                                                  \
     if constexpr ((#arg "")[0] != '\0') {                                                        \
         const std::string arg_str = #arg ": " + to_debug_str(emuenv.mem __ARGS_WITH_COMMA(arg)); \
@@ -102,6 +104,7 @@ inline std::string to_debug_str(const MemState &mem) {
         __TRACY_LOG_ARG_IF(arg8)                                                                                                                        \
     }
 
+#pragma warning(pop)
 // workaround for variadic macro in "traditional" MSVC preprocessor.
 // https://docs.microsoft.com/en-us/cpp/preprocessor/preprocessor-experimental-overview?view=msvc-170#macro-arguments-are-unpacked
 #if (defined(_MSC_VER) && !defined(__clang__) && (!defined(_MSVC_TRADITIONAL) || _MSVC_TRADITIONAL))
