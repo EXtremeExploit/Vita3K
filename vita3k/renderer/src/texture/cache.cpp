@@ -58,7 +58,23 @@ uint64_t hash_texture_data(const SceGxmTexture &texture, uint32_t texture_size, 
     uint64_t data_hash = 0;
 
     if (data.address()) {
-        data_hash = hash_data(data.get(mem), texture_size);
+        const auto dataPtr = data.get(mem);
+
+        constexpr const int PARTIAL_TEXT_BLOCK_SIZE = 1 << 16;
+
+        if (texture_size <= ((PARTIAL_TEXT_BLOCK_SIZE) * 4) || texture_size % 2 != 0)
+            data_hash = hash_data(dataPtr, texture_size);
+        else {
+            uint8_t buf[(PARTIAL_TEXT_BLOCK_SIZE) * 4]; // Around 262KiB
+            // Copy first 65KiB, middle 131KiB and last 65KB into buf.
+            // Hashing more than 262KiB of a texture is a lot, some games send huge textures and hashing all of them takes more than 16ms
+            // and 262KiB should be enough in case textures are similar, most improtantly the most common parts
+            // of a texture are being hashed, that being the start, end and middle of the texture stream
+            memcpy(buf + PARTIAL_TEXT_BLOCK_SIZE * 0, (uint8_t *)dataPtr, PARTIAL_TEXT_BLOCK_SIZE);
+            memcpy(buf + PARTIAL_TEXT_BLOCK_SIZE * 1, ((uint8_t *)dataPtr + ((texture_size / 2) - PARTIAL_TEXT_BLOCK_SIZE)), PARTIAL_TEXT_BLOCK_SIZE * 2);
+            memcpy(buf + PARTIAL_TEXT_BLOCK_SIZE * 3, ((uint8_t *)dataPtr + (texture_size - PARTIAL_TEXT_BLOCK_SIZE)), PARTIAL_TEXT_BLOCK_SIZE);
+            data_hash = hash_data(buf, PARTIAL_TEXT_BLOCK_SIZE * 4);
+        }
     }
 
     switch (base_format) {
