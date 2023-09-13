@@ -150,3 +150,9 @@ int SceNetAdhocMatchingContext::initInputRecv(EmuEnvState &emuenv, SceUID thread
     return 0;
 };
 
+
+int SceNetAdhocMatchingContext::setHelloOpt(SceNetAdhocMatchingContext* ctx, int len, void* buf) {
+    
+    return 0;
+};
+

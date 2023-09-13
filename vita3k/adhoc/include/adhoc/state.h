@@ -28,11 +28,10 @@
 #include <string>
 #include <vector>
 
-#define SCE_NET_ADHOC_MATCHING_MAXNUM			16
-#define SCE_NET_ADHOC_MATCHING_MAXOPTLEN		9196
-#define SCE_NET_ADHOC_MATCHING_MAXDATALEN		9204
-#define SCE_NET_ADHOC_MATCHING_MAXHELLOOPTLEN	1426
-
+#define SCE_NET_ADHOC_MATCHING_MAXNUM 16
+#define SCE_NET_ADHOC_MATCHING_MAXOPTLEN 9196
+#define SCE_NET_ADHOC_MATCHING_MAXDATALEN 9204
+#define SCE_NET_ADHOC_MATCHING_MAXHELLOOPTLEN 1426
 
 DECL_EXPORT(SceInt32, sceNetCtlAdhocGetInAddr, SceNetInAddr *inaddr);
 DECL_EXPORT(SceInt32, sceNetSocket, const char *name, int domain, SceNetSocketType type, SceNetProtocol protocol);
@@ -73,11 +72,9 @@ enum SceNetAdhocMatchingErrorCode {
 };
 
 enum SceAdhocMatchingMode {
-    SCE_ADHOC_MATCHING_MODE_P2P,
-    SCE_ADHOC_MATCHING_MODE_PARENT,
+    SCE_ADHOC_MATCHING_MODE_PARENT = 1,
     SCE_ADHOC_MATCHING_MODE_CHILD,
-    SCE_ADHOC_MATCHING_MODE_UDP,
-    SCE_ADHOC_MATCHING_MODE_MAX
+    SCE_ADHOC_MATCHING_MODE_P2P
 };
 
 enum AdhocMatchingEventType {
@@ -100,6 +97,11 @@ struct SceNetAdhocMatchingHandler {
     Ptr<void> entry;
 };
 
+struct SceAdhocMatchingHelloOptions {
+    char idk[12];
+    char msg[1426];
+};
+
 struct SceNetAdhocMatchingContext {
     SceNetAdhocMatchingContext *next;
     int id;
@@ -119,10 +121,12 @@ struct SceNetAdhocMatchingContext {
     std::thread inputThread;
     SceUID msgPipeUID;
     int matchingRecvSocket;
+    int totalHelloLenght;
 
     int initSendSocket(EmuEnvState &emuenv, SceUID thread_id, const char *export_name);
     int initEventHandler(EmuEnvState &emuenv, SceUID thread_id, const char *export_name);
     int initInputRecv(EmuEnvState &emuenv, SceUID thread_id, const char *export_name);
+    int setHelloOpt(SceNetAdhocMatchingContext *ctx, int len, void *buf);
 };
 
 struct AdhocState {

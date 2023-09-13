@@ -42,8 +42,20 @@ EXPORT(int, sceNetAdhocMatchingCreate, int mode, int maxnum, SceUShort16 port, i
     if (!emuenv.adhoc.inited)
         return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_NOT_INITIALIZED);
 
-    if ((mode < SCE_ADHOC_MATCHING_MODE_PARENT) || (SCE_ADHOC_MATCHING_MODE_UDP < mode))
+    if ((mode < SCE_ADHOC_MATCHING_MODE_PARENT) || (SCE_ADHOC_MATCHING_MODE_P2P < mode))
         return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_INVALID_MODE);
+
+    if (maxnum < 2 || maxnum > 16)
+        return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_INVALID_MAXNUM);
+
+    if (rxbuflen < maxnum * 4 + 4U)
+        return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_RXBUF_TOO_SHORT);
+
+    if (((mode == SCE_ADHOC_MATCHING_MODE_PARENT) || (mode == SCE_ADHOC_MATCHING_MODE_P2P)) && ((rexmtInterval == 0 || (helloInterval == 0))))
+        return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_INVALID_ARG);
+
+    if (keepaliveInterval < 0 || initCount == 0)
+        return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_INVALID_ARG);
 
     const auto id = emuenv.adhoc.createAdhocMatchingContext(port);
 
@@ -52,7 +64,11 @@ EXPORT(int, sceNetAdhocMatchingCreate, int mode, int maxnum, SceUShort16 port, i
 
     const auto ctx = emuenv.adhoc.findMatchingContext(id);
     ctx->mode = mode;
-    ctx->maxnum = maxnum;
+
+    // Children have 2 peers max (parent and itself)
+    ctx->maxnum = 2;
+    if (ctx->mode == SCE_ADHOC_MATCHING_MODE_PARENT)
+        ctx->maxnum = maxnum;
     ctx->port = port;
     ctx->rxbuflen = rxbuflen;
     ctx->helloInterval = helloInterval;
