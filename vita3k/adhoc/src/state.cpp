@@ -76,9 +76,15 @@ int AdhocState::createAdhocMatchingContext(SceUShort16 port) {
     } while (true);
 }
 
-int SceNetAdhocMatchingContext::initSendSocket(EmuEnvState &emuenv, SceUID thread_id, const char *export_name){
+int adhocMatchingEventThread(int matchingId){
+
+};
+
+int SceNetAdhocMatchingContext::initSendSocket(EmuEnvState &emuenv, SceUID thread_id, const char *export_name) {
     CALL_EXPORT(sceNetCtlAdhocGetInAddr, &emuenv.adhoc.addr);
     int s = CALL_EXPORT(sceNetSocket, "SceNetAdhocMatchingCallout", 2, SCE_NET_SOCK_DGRAM_P2P, SCE_NET_IPPROTO_IP);
+    if (s < 0)
+        return s;
 
     SceNetSockaddrIn addr = {
         .sin_len = 16,
@@ -93,9 +99,22 @@ int SceNetAdhocMatchingContext::initSendSocket(EmuEnvState &emuenv, SceUID threa
         // TODO: uncomment shutdown once its implemented
         // CALL_EXPORT(sceNetShutdown, s, 0);
         CALL_EXPORT(sceNetSocketClose, s);
+        return ret;
     }
 
     int optval = 1;
     CALL_EXPORT(sceNetSetsockopt, s, SCE_NET_SOL_SOCKET, SCE_NET_SO_BROADCAST, &optval, sizeof(optval));
     this->socket = s;
-}
+    return 0;
+};
+
+int SceNetAdhocMatchingContext::initEventHandler(EmuEnvState &emuenv, SceUID thread_id, const char *export_name) {
+    auto msgPipe = CALL_EXPORT(sceKernelCreateMsgPipe, "SceNetAdhocMatchingEvent", 0x40, 0xc, 0x1000, 0);
+    if (msgPipe < 0)
+        return msgPipe;
+
+    this->msgPipeUID = msgPipe;
+    // Create the matching thread and pass the context id as the argument
+    this->matchingEventThread = std::thread(adhocMatchingEventThread, this->id);
+    return 0;
+};

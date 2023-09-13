@@ -126,18 +126,26 @@ EXPORT(int, sceNetAdhocMatchingStart, int id, int threadPriority, int threadStac
     if (ctx == nullptr)
         return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_INVALID_ID);
 
-    ctx->initSendSocket(emuenv, thread_id, export_name);
+    auto ret = ctx->initSendSocket(emuenv, thread_id, export_name);
+    if (ret < 0)
+        return ret;
 
-    if (threadPriority == 0)
-        threadPriority = 0x10000100;
-    if (threadStackSize == 0)
-        threadStackSize = 0x4000;
+    // thread stuff should go here, but we are ignoring it as we are running the thread natively
+    ret = ctx->initEventHandler(emuenv, thread_id, export_name);
+    if (ret < 0)
+        return ret;
 
     return 0;
 }
 
 EXPORT(int, sceNetAdhocMatchingStop, int id) {
     TRACY_FUNC(sceNetAdhocMatchingStop, id);
+    return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_NOT_INITIALIZED);
+
+    SceNetAdhocMatchingContext *ctx = emuenv.adhoc.findMatchingContext(id);
+    if (ctx == nullptr)
+        return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_INVALID_ID);
+
     return UNIMPLEMENTED();
 }
 

@@ -18,6 +18,7 @@
 #pragma once
 
 #include <emuenv/state.h>
+#include <kernel/types.h>
 #include <mem/ptr.h>
 #include <module/module.h>
 #include <net/types.h>
@@ -35,6 +36,7 @@ DECL_EXPORT(int, sceNetSetsockopt, int sid, SceNetProtocol level, SceNetSocketOp
 DECL_EXPORT(int, sceNetGetMacAddress, SceNetEtherAddr *addr, int flags);
 DECL_EXPORT(int, sceNetSocketClose, int sid);
 DECL_EXPORT(int, sceNetShutdown, int eid, int how);
+DECL_EXPORT(int, sceKernelCreateMsgPipe, const char *name, uint32_t type, uint32_t attr, SceSize bufSize, const SceKernelCreateMsgPipeOpt *opt);
 
 enum SceNetAdhocMatchingErrorCode {
     SCE_NET_ADHOC_MATCHING_ERROR_INVALID_MODE = 0x80413101,
@@ -107,8 +109,11 @@ struct SceNetAdhocMatchingContext {
     SceNetAdhocMatchingHandler handler;
     int socket;
     SceNetEtherAddr mac;
+    std::thread matchingEventThread;
+    SceUID msgPipeUID;
 
     int initSendSocket(EmuEnvState &emuenv, SceUID thread_id, const char *export_name);
+    int initEventHandler(EmuEnvState &emuenv, SceUID thread_id, const char *export_name);
 };
 
 struct AdhocState {
