@@ -551,8 +551,8 @@ EXPORT(int, sceNetShowRoute) {
     return UNIMPLEMENTED();
 }
 
-EXPORT(int, sceNetShutdown) {
-    TRACY_FUNC(sceNetShutdown);
+EXPORT(int, sceNetShutdown, int eid, int how) {
+    TRACY_FUNC(sceNetShutdown, eid, how);
     return UNIMPLEMENTED();
 }
 

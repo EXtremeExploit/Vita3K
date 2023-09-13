@@ -15,7 +15,15 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+#include "net/types.h"
+#include <cstdint>
+#include <cstring>
 #include <module/module.h>
+
+#include <adhoc/state.h>
+
+#include <util/tracy.h>
+TRACY_MODULE_NAME(SceNetAdhocMatching);
 
 EXPORT(int, sceNetAdhocMatchingAbortSendData) {
     return UNIMPLEMENTED();
@@ -29,11 +37,49 @@ EXPORT(int, sceNetAdhocMatchingCancelTargetWithOpt) {
     return UNIMPLEMENTED();
 }
 
-EXPORT(int, sceNetAdhocMatchingCreate) {
-    return UNIMPLEMENTED();
+EXPORT(int, sceNetAdhocMatchingCreate, int mode, int maxnum, SceUShort16 port, int rxbuflen, unsigned int helloInterval, unsigned int keepaliveInterval, int initCount, unsigned int rexmtInterval, Ptr<void> handlerAddr) {
+    TRACY_FUNC(sceNetAdhocMatchingCreate, mode, maxnum, port, rxbuflen, helloInterval, keepaliveInterval, initCount, rexmtInterval, handlerAddr)
+    if (!emuenv.adhoc.inited)
+        return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_NOT_INITIALIZED);
+
+    if ((mode < SCE_ADHOC_MATCHING_MODE_PARENT) || (SCE_ADHOC_MATCHING_MODE_UDP < mode))
+        return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_INVALID_MODE);
+
+    const auto id = emuenv.adhoc.createAdhocMatchingContext(port);
+
+    if (id < 0)
+        return RET_ERROR(id);
+
+    const auto ctx = emuenv.adhoc.findMatchingContext(id);
+    ctx->mode = mode;
+    ctx->maxnum = maxnum;
+    ctx->port = port;
+    ctx->rxbuflen = rxbuflen;
+    ctx->helloInterval = helloInterval;
+    ctx->keepAliveInterval = keepaliveInterval;
+    ctx->initCount = initCount;
+    ctx->rexmtInterval = rexmtInterval;
+
+    SceNetEtherAddr localmac = {};
+    CALL_EXPORT(sceNetGetMacAddress, &localmac, 0);
+    ctx->mac = localmac;
+
+    SceNetAdhocMatchingHandler handler{
+        .entry = handlerAddr,
+    };
+
+    ctx->handler = handler;
+
+    ctx->rxbuf = new uint8_t[ctx->rxbuflen];
+
+    return ctx->id;
 }
 
-EXPORT(int, sceNetAdhocMatchingDelete) {
+EXPORT(int, sceNetAdhocMatchingDelete, int id) {
+    TRACY_FUNC(sceNetAdhocMatchingDelete, id);
+    if (!emuenv.adhoc.inited)
+        return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_NOT_INITIALIZED);
+
     return UNIMPLEMENTED();
 }
 
@@ -45,8 +91,18 @@ EXPORT(int, sceNetAdhocMatchingGetMembers) {
     return UNIMPLEMENTED();
 }
 
-EXPORT(int, sceNetAdhocMatchingInit) {
-    return UNIMPLEMENTED();
+EXPORT(int, sceNetAdhocMatchingInit, SceSize poolsize, void *poolptr) {
+    TRACY_FUNC(sceNetAdhocMatchingInit, poolsize, poolptr);
+
+    if (emuenv.adhoc.inited)
+        return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_ALREADY_INITIALIZED);
+
+    if (!poolptr)
+        return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_INVALID_ARG);
+
+    emuenv.adhoc.inited = true;
+
+    return STUBBED("Stub adhoc init to true");
 }
 
 EXPORT(int, sceNetAdhocMatchingSelectTarget) {
@@ -61,14 +117,45 @@ EXPORT(int, sceNetAdhocMatchingSetHelloOpt) {
     return UNIMPLEMENTED();
 }
 
-EXPORT(int, sceNetAdhocMatchingStart) {
-    return UNIMPLEMENTED();
+EXPORT(int, sceNetAdhocMatchingStart, int id, int threadPriority, int threadStackSize, int threadCpuAffinityMask, int helloOptlen, const void *helloOpt) {
+    TRACY_FUNC(sceNetAdhocMatchingStart, id, threadPriority, threadStackSize, threadCpuAffinityMask, helloOptlen, helloOpt);
+    if (!emuenv.adhoc.inited)
+        return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_NOT_INITIALIZED);
+
+    SceNetAdhocMatchingContext *ctx = emuenv.adhoc.findMatchingContext(id);
+    if (ctx == nullptr)
+        return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_INVALID_ID);
+
+    ctx->initSendSocket(emuenv, thread_id, export_name);
+
+    if (threadPriority == 0)
+        threadPriority = 0x10000100;
+    if (threadStackSize == 0)
+        threadStackSize = 0x4000;
+
+    return 0;
 }
 
-EXPORT(int, sceNetAdhocMatchingStop) {
+EXPORT(int, sceNetAdhocMatchingStop, int id) {
+    TRACY_FUNC(sceNetAdhocMatchingStop, id);
     return UNIMPLEMENTED();
 }
 
 EXPORT(int, sceNetAdhocMatchingTerm) {
+    TRACY_FUNC(sceNetAdhocMatchingTerm);
+
+    if (!emuenv.adhoc.inited)
+        return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_NOT_INITIALIZED);
+
+    for (uint8_t i = 0; i < 15; i++) {
+        CALL_EXPORT(sceNetAdhocMatchingStop, i);
+    }
+
+    // for (auto &ctx : emuenv.adhoc.matchingContexts) {
+    //     delete ctx.second;
+    // }
+
+    emuenv.adhoc.inited = false;
+
     return UNIMPLEMENTED();
 }

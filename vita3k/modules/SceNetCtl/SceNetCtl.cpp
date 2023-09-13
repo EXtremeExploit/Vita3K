@@ -157,7 +157,14 @@ EXPORT(int, sceNetCtlAdhocGetInAddr, SceNetInAddr *inaddr) {
         return RET_ERROR(SCE_NET_CTL_ERROR_INVALID_ADDR);
     }
 
-    return UNIMPLEMENTED();
+    struct hostent *resolved = gethostbyname("localhost"); // only loopback for now
+    if (resolved == nullptr) {
+        memset(inaddr, 0, sizeof(*inaddr));
+        return RET_ERROR(-1);
+    }
+    memcpy(&inaddr->s_addr, resolved->h_addr, sizeof(uint32_t));
+
+    return STUBBED("Return loopback");
 }
 
 EXPORT(int, sceNetCtlAdhocGetPeerList, SceSize *peerInfoNum, SceNetCtlAdhocPeerInfo *peerInfo) {

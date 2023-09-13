@@ -92,11 +92,24 @@ EXPORT(int, sceNpAuthTerm) {
 
 EXPORT(int, sceNpCmpNpId, np::SceNpId *npid1, np::SceNpId *npid2) {
     TRACY_FUNC(sceNpCmpNpId, npid1, npid2);
-    STUBBED("assume single user");
-    if (std::string(npid1->handle.data) == emuenv.io.user_name && std::string(npid2->handle.data) == emuenv.io.user_name) {
+
+    if (!npid1 || !npid2)
+        return RET_ERROR(0x80550601); // invalid argument
+
+    if (npid1->opt[4] != 1 || npid2->opt[4] != 1)
+        return RET_ERROR(0x80550605); // INVALID NP ID
+
+    int cmp = strncmp(npid1->handle.data, npid2->handle.data, sizeof(npid1->handle.data));
+    if (cmp != 0)
+        return RET_ERROR(0x80550609); // not match
+
+    if (memcmp(npid1->opt, npid2->opt, 4) == 0)
         return 0;
-    }
-    return 0x80550605; // INVALID NP ID
+
+    if (npid1->opt[0] == 0 || npid2->opt[0] == 0)
+        return 0;
+
+    return 0x80550609; // not match
 }
 
 EXPORT(int, sceNpCmpNpIdInOrder) {
