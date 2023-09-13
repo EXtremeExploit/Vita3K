@@ -15,7 +15,9 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+#include "net/types.h"
 #include <adhoc/state.h>
+#include <thread>
 
 SceNetAdhocMatchingContext *AdhocState::findMatchingContext(int id) {
     // Iterate Matching Context List
@@ -76,9 +78,18 @@ int AdhocState::createAdhocMatchingContext(SceUShort16 port) {
     } while (true);
 }
 
-int adhocMatchingEventThread(int matchingId){
-
+int adhocMatchingEventThread(int matchingId) {
+    return 0;
 };
+
+int adhocMatchingInputThread(int matchingId) {
+    return 0;
+};
+
+int adhocMatchingCalloutThread(int matchingId) {
+    return 0;
+};
+
 
 int SceNetAdhocMatchingContext::initSendSocket(EmuEnvState &emuenv, SceUID thread_id, const char *export_name) {
     CALL_EXPORT(sceNetCtlAdhocGetInAddr, &emuenv.adhoc.addr);
@@ -92,9 +103,7 @@ int SceNetAdhocMatchingContext::initSendSocket(EmuEnvState &emuenv, SceUID threa
         .sin_port = CALL_EXPORT(sceNetHtons, 3658),
         .sin_vport = CALL_EXPORT(sceNetHtons, this->port + 1)
     };
-    SceNetSockaddr bAddr = {};
-    memcpy(&bAddr, &addr, sizeof(addr));
-    auto ret = CALL_EXPORT(sceNetBind, s, &bAddr, 16);
+    auto ret = CALL_EXPORT(sceNetBind, s, (SceNetSockaddr *)&addr, sizeof(SceNetSockaddr));
     if (ret < 0) {
         // TODO: uncomment shutdown once its implemented
         // CALL_EXPORT(sceNetShutdown, s, 0);
@@ -118,3 +127,26 @@ int SceNetAdhocMatchingContext::initEventHandler(EmuEnvState &emuenv, SceUID thr
     this->matchingEventThread = std::thread(adhocMatchingEventThread, this->id);
     return 0;
 };
+
+int SceNetAdhocMatchingContext::initInputRecv(EmuEnvState &emuenv, SceUID thread_id, const char *export_name) {
+    int s = CALL_EXPORT(sceNetSocket, "SceNetAdhocMatchingRecv", 2, SCE_NET_SOCK_DGRAM_P2P, SCE_NET_IPPROTO_IP);
+    if (s < 0)
+        return s;
+
+    this->matchingRecvSocket = s;
+
+    SceNetSockaddrIn addr = {};
+    addr.sin_len = 16;
+    addr.sin_family = 2;
+    addr.sin_port = CALL_EXPORT(sceNetHtons, 3658);
+    addr.sin_vport = CALL_EXPORT(sceNetHtons, this->port);
+    auto ret = CALL_EXPORT(sceNetBind, this->matchingRecvSocket, (SceNetSockaddr *)&addr, sizeof(SceNetSockaddr));
+    if (ret < 0) {
+        CALL_EXPORT(sceNetSocketClose, this->matchingRecvSocket);
+        return ret;
+    }
+
+    this->inputThread = std::thread(adhocMatchingInputThread, this->id);
+    return 0;
+};
+

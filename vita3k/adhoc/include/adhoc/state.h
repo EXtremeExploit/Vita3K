@@ -28,6 +28,12 @@
 #include <string>
 #include <vector>
 
+#define SCE_NET_ADHOC_MATCHING_MAXNUM			16
+#define SCE_NET_ADHOC_MATCHING_MAXOPTLEN		9196
+#define SCE_NET_ADHOC_MATCHING_MAXDATALEN		9204
+#define SCE_NET_ADHOC_MATCHING_MAXHELLOOPTLEN	1426
+
+
 DECL_EXPORT(SceInt32, sceNetCtlAdhocGetInAddr, SceNetInAddr *inaddr);
 DECL_EXPORT(SceInt32, sceNetSocket, const char *name, int domain, SceNetSocketType type, SceNetProtocol protocol);
 DECL_EXPORT(unsigned short int, sceNetHtons, unsigned short int n);
@@ -110,10 +116,13 @@ struct SceNetAdhocMatchingContext {
     int socket;
     SceNetEtherAddr mac;
     std::thread matchingEventThread;
+    std::thread inputThread;
     SceUID msgPipeUID;
+    int matchingRecvSocket;
 
     int initSendSocket(EmuEnvState &emuenv, SceUID thread_id, const char *export_name);
     int initEventHandler(EmuEnvState &emuenv, SceUID thread_id, const char *export_name);
+    int initInputRecv(EmuEnvState &emuenv, SceUID thread_id, const char *export_name);
 };
 
 struct AdhocState {

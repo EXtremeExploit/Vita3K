@@ -126,6 +126,10 @@ EXPORT(int, sceNetAdhocMatchingStart, int id, int threadPriority, int threadStac
     if (ctx == nullptr)
         return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_INVALID_ID);
 
+    if (((helloOptlen < 0) || (SCE_NET_ADHOC_MATCHING_MAXHELLOOPTLEN < helloOptlen)) || ((0 < helloOptlen && (!helloOpt)))) {
+        return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_INVALID_OPTLEN);
+    }
+
     auto ret = ctx->initSendSocket(emuenv, thread_id, export_name);
     if (ret < 0)
         return ret;
