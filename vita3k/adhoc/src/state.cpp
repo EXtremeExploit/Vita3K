@@ -90,6 +90,32 @@ int adhocMatchingCalloutThread(int matchingId) {
     return 0;
 };
 
+void SceNetAdhocMatchingContext::destroy(EmuEnvState &emuenv, SceUID thread_id, const char *export_name) {
+    SceNetAdhocMatchingContext *item;
+
+    SceNetAdhocMatchingContext *next = emuenv.adhoc.adhocMatchingContextsList;
+    SceNetAdhocMatchingContext *pSVar3 = nullptr;
+    if (emuenv.adhoc.adhocMatchingContextsList != nullptr) {
+
+        do {
+            auto item = next;
+            next = item->next;
+            // Find ourselves in the list
+            if (item == this) {
+                if (pSVar3 != nullptr) {
+                    pSVar3->next = next;
+                    next = emuenv.adhoc.adhocMatchingContextsList;
+                }
+                emuenv.adhoc.adhocMatchingContextsList = next->next;
+                item->next = nullptr;
+                break;
+            }
+            pSVar3 = item;
+        } while (next != nullptr);
+    }
+    delete this;
+    return;
+};
 
 int SceNetAdhocMatchingContext::initSendSocket(EmuEnvState &emuenv, SceUID thread_id, const char *export_name) {
     CALL_EXPORT(sceNetCtlAdhocGetInAddr, &emuenv.adhoc.addr);
@@ -150,9 +176,6 @@ int SceNetAdhocMatchingContext::initInputRecv(EmuEnvState &emuenv, SceUID thread
     return 0;
 };
 
-
-int SceNetAdhocMatchingContext::setHelloOpt(SceNetAdhocMatchingContext* ctx, int len, void* buf) {
-    
+int SceNetAdhocMatchingContext::setHelloOpt(SceNetAdhocMatchingContext *ctx, int len, void *buf) {
     return 0;
 };
-

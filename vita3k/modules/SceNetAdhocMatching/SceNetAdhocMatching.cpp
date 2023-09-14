@@ -85,7 +85,6 @@ EXPORT(int, sceNetAdhocMatchingCreate, int mode, int maxnum, SceUShort16 port, i
     };
 
     ctx->handler = handler;
-
     ctx->rxbuf = new uint8_t[ctx->rxbuflen];
 
     return ctx->id;
@@ -95,6 +94,14 @@ EXPORT(int, sceNetAdhocMatchingDelete, int id) {
     TRACY_FUNC(sceNetAdhocMatchingDelete, id);
     if (!emuenv.adhoc.inited)
         return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_NOT_INITIALIZED);
+
+    SceNetAdhocMatchingContext *ctx = emuenv.adhoc.findMatchingContext(id);
+    if (ctx == nullptr)
+        return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_INVALID_ID);
+
+    // TODO: check if its running
+    delete ctx->rxbuf;
+    ctx->destroy(emuenv, thread_id, export_name);
 
     return UNIMPLEMENTED();
 }
@@ -160,7 +167,8 @@ EXPORT(int, sceNetAdhocMatchingStart, int id, int threadPriority, int threadStac
 
 EXPORT(int, sceNetAdhocMatchingStop, int id) {
     TRACY_FUNC(sceNetAdhocMatchingStop, id);
-    return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_NOT_INITIALIZED);
+    if (!emuenv.adhoc.inited)
+        return RET_ERROR(SCE_NET_ADHOC_MATCHING_ERROR_NOT_INITIALIZED);
 
     SceNetAdhocMatchingContext *ctx = emuenv.adhoc.findMatchingContext(id);
     if (ctx == nullptr)

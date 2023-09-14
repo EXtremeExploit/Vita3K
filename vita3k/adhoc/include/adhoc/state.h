@@ -109,7 +109,7 @@ struct SceNetAdhocMatchingContext {
     int maxnum;
     SceUShort16 port;
     int rxbuflen;
-    void *rxbuf;
+    uint8_t *rxbuf;
     unsigned int helloInterval;
     unsigned int keepAliveInterval;
     int initCount;
@@ -123,6 +123,7 @@ struct SceNetAdhocMatchingContext {
     int matchingRecvSocket;
     int totalHelloLenght;
 
+    void destroy(EmuEnvState &emuenv, SceUID thread_id, const char *export_name);
     int initSendSocket(EmuEnvState &emuenv, SceUID thread_id, const char *export_name);
     int initEventHandler(EmuEnvState &emuenv, SceUID thread_id, const char *export_name);
     int initInputRecv(EmuEnvState &emuenv, SceUID thread_id, const char *export_name);
