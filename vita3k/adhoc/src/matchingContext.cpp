@@ -207,7 +207,12 @@ bool SceNetAdhocMatchingContext::initInputThread(EmuEnvState &emuenv) {
         .sin_family = AF_INET,
         .sin_port = this->port
     };
+
+#ifdef _WIN32
+    recv_addr.sin_addr.S_un.S_addr = htonl(INADDR_ANY);
+#else
     recv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+#endif
 
     auto bindResult = bind(this->recvSocket, (sockaddr *)&recv_addr, sizeof(recv_addr));
 
