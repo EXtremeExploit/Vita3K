@@ -151,7 +151,7 @@ bool SceNetAdhocMatchingContext::broadcastHello() {
     send_addr.sin_addr.s_addr = INADDR_BROADCAST;
 #endif
 
-    auto sendResult = ::sendto(this->sendSocket, &this->hello, this->totalHelloLength, 0, (sockaddr *)&send_addr, sizeof(send_addr));
+    auto sendResult = sendto(this->sendSocket, &this->hello, this->totalHelloLength, 0, (sockaddr *)&send_addr, sizeof(send_addr));
 
     if (sendResult == EAGAIN)
         sendResult = 0;

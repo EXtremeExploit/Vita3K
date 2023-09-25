@@ -27,7 +27,7 @@ int adhocMatchingEventThread(EmuEnvState *emuenv, int id) {
     auto ctx = emuenv->adhoc.findMatchingContext(id);
 
     SceNetAdhocMatchingPipeMessage pipeMessage;
-    while (::read(ctx->pipesFd[0], &pipeMessage, sizeof(pipeMessage)) >= 0) {
+    while (read(ctx->pipesFd[0], &pipeMessage, sizeof(pipeMessage)) >= 0) {
         int type = pipeMessage.type;
         auto peer = pipeMessage.peer;
         auto flags = pipeMessage.flags;
@@ -70,7 +70,7 @@ int adhocMatchingInputThread(EmuEnvState *emuenv, int id) {
         SceUShort16 packetLength;
         do {
             do {
-                res = ::recvfrom(ctx->recvSocket, ctx->rxbuf, ctx->rxbuflen, 0, (sockaddr *)fromAddr, &fromAddrLen);
+                res = recvfrom(ctx->recvSocket, ctx->rxbuf, ctx->rxbuflen, 0, (sockaddr *)fromAddr, &fromAddrLen);
                 if (res < 0) {
                     assert(false);
                     return 0; // exit the thread immediatly
@@ -107,7 +107,7 @@ int adhocMatchingInputThread(EmuEnvState *emuenv, int id) {
                 foundTarget->msg.peer = foundTarget;
                 foundTarget->msg.flags = foundTarget->msg.flags | 1;
                 *(uint *)&foundTarget->keepAliveInterval = ctx->keepAliveInterval;
-                ::write(ctx->pipesFd[1], &foundTarget->msg, sizeof(foundTarget->msg));
+                write(ctx->pipesFd[1], &foundTarget->msg, sizeof(foundTarget->msg));
             }
         }
     } while (true);
