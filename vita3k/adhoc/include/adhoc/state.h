@@ -149,7 +149,7 @@ struct SceNetAdhocMatchingContext {
     int maxnum;
     SceUShort16 port;
     int rxbuflen;
-    uint8_t *rxbuf;
+    char *rxbuf;
     unsigned int helloInterval;
     unsigned int keepAliveInterval;
     int initCount;

@@ -19,6 +19,10 @@
 
 #include <adhoc/state.h>
 
+// s_addr can be a macro on windows
+#pragma push_macro("s_addr")
+#undef s_addr
+
 int adhocMatchingEventThread(EmuEnvState *emuenv, int id) {
     auto ctx = emuenv->adhoc.findMatchingContext(id);
 
@@ -110,3 +114,5 @@ int adhocMatchingInputThread(EmuEnvState *emuenv, int id) {
 
     return 0;
 };
+
+#pragma pop_macro("s_addr")

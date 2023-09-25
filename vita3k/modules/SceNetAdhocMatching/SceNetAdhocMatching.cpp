@@ -22,6 +22,10 @@
 #include <util/tracy.h>
 TRACY_MODULE_NAME(SceNetAdhocMatching);
 
+// s_addr can be a macro on windows
+#pragma push_macro("s_addr")
+#undef s_addr
+
 EXPORT(int, sceNetAdhocMatchingAbortSendData) {
     return UNIMPLEMENTED();
 }
@@ -88,7 +92,7 @@ EXPORT(int, sceNetAdhocMatchingCreate, int mode, int maxnum, SceUShort16 port, i
     };
 
     ctx->handler = handler;
-    ctx->rxbuf = new uint8_t[ctx->rxbuflen];
+    ctx->rxbuf = new char[ctx->rxbuflen];
 
     return ctx->id;
 }
@@ -242,3 +246,5 @@ EXPORT(int, sceNetAdhocMatchingTerm) {
 
     return UNIMPLEMENTED();
 }
+
+#pragma pop_macro("s_addr")
