@@ -17,19 +17,11 @@
 
 #pragma once
 
-#include "kernel/callback.h"
-#include "mem/util.h"
-#include <emuenv/state.h>
-#include <kernel/types.h>
-#include <mem/ptr.h>
 #include <module/module.h>
-#include <net/state.h>
-#include <net/types.h>
-#include <util/types.h>
 
-#include <map>
-#include <string>
-#include <vector>
+#include <kernel/callback.h>
+#include <mem/util.h>
+#include <net/state.h>
 
 #define SCE_NET_ADHOC_MATCHING_MAXNUM 16
 #define SCE_NET_ADHOC_MATCHING_MAXOPTLEN 9196

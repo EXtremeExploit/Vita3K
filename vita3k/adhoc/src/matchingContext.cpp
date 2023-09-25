@@ -15,24 +15,8 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-#include "util/types.h"
-
 #include <adhoc/state.h>
-#include <arpa/inet.h>
-#include <asm-generic/errno-base.h>
-#include <cstdint>
-#include <emuenv/state.h>
-#include <io/state.h>
 #include <kernel/state.h>
-#include <kernel/thread/thread_state.h>
-#include <net/types.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <util/log.h>
-
-#include <cstring>
-#include <thread>
 
 void SceNetAdhocMatchingContext::destroy(EmuEnvState &emuenv, SceUID thread_id, const char *export_name) {
     SceNetAdhocMatchingContext *prev = emuenv.adhoc.adhocMatchingContextsList; // empty header
@@ -231,7 +215,6 @@ bool SceNetAdhocMatchingContext::initInputThread(EmuEnvState &emuenv) {
 }
 
 bool SceNetAdhocMatchingContext::generateAddrsMsg(EmuEnvState &emuenv) {
-
     return true;
 }
 
@@ -239,4 +222,6 @@ SceNetAdhocMatchingTarget *SceNetAdhocMatchingContext::newTarget(uint32_t addr) 
     auto target = new SceNetAdhocMatchingTarget();
     // TODO: init the target to status 1
     target->addr.s_addr = addr;
+
+    return target;
 }

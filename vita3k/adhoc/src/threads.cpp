@@ -15,27 +15,9 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-#include "cpu/functions.h"
-#include "mem/functions.h"
 #include "module/module.h"
-#include "util/types.h"
 
 #include <adhoc/state.h>
-#include <arpa/inet.h>
-#include <asm-generic/errno-base.h>
-#include <cstdint>
-#include <emuenv/state.h>
-#include <io/state.h>
-#include <kernel/state.h>
-#include <kernel/thread/thread_state.h>
-#include <net/types.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <util/log.h>
-
-#include <cstring>
-#include <thread>
 
 int adhocMatchingEventThread(EmuEnvState *emuenv, int id) {
     auto ctx = emuenv->adhoc.findMatchingContext(id);

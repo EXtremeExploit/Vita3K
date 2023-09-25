@@ -15,17 +15,10 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-#include "net/types.h"
-#include <arpa/inet.h>
-#include <asm-generic/socket.h>
-#include <cstdint>
-#include <cstring>
 #include <module/module.h>
 
 #include <adhoc/state.h>
 
-#include <netinet/in.h>
-#include <sys/socket.h>
 #include <util/tracy.h>
 TRACY_MODULE_NAME(SceNetAdhocMatching);
 
