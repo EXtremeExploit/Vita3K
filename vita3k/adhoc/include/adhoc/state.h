@@ -140,6 +140,7 @@ struct SceNetAdhocMatchingPipeMessage {
 
 struct SceNetAdhocMatchingTarget {
     SceNetAdhocMatchingTarget *next;
+    int status;
     SceNetInAddr addr;
     int rawPacketLength;
     void *rawPacket;
@@ -183,6 +184,9 @@ struct SceNetAdhocMatchingContext {
 
     SceNetAdhocMatchingTarget *targets;
     SceNetAdhocMatchingTarget *findTargetByAddr(uint32_t addr);
+    SceNetAdhocMatchingTarget *newTarget(uint32_t addr);
+    bool generateAddrsMsg(EmuEnvState &emuenv);
+
     void destroy(EmuEnvState &emuenv, SceUID thread_id, const char *export_name);
 
     void notifyHandler(EmuEnvState &emuenv, int event, SceNetInAddr *peer, int optLen, void *opt);

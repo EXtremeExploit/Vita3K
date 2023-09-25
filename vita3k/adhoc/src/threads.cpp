@@ -103,13 +103,15 @@ int adhocMatchingInputThread(EmuEnvState *emuenv, int id) {
         if (foundTarget == nullptr) {
             uint8_t targetMode = *(ctx->rxbuf + 1);
             if (((targetMode == SCE_NET_ADHOC_MATCHING_MODE_CHILD) && ((ctx->mode == SCE_NET_ADHOC_MATCHING_MODE_PARENT || ctx->mode == SCE_NET_ADHOC_MATCHING_MODE_P2P))) || ((targetMode == SCE_NET_ADHOC_MATCHING_MODE_PARENT && ((ctx->mode == SCE_NET_ADHOC_MATCHING_MODE_CHILD || (ctx->mode == SCE_NET_ADHOC_MATCHING_MODE_P2P)))))) {
-                // foundTarget = FUN_81001dc6(ctx, &fromAddr->sin_addr.s_addr);
+                foundTarget = ctx->newTarget(fromAddr->sin_addr.s_addr);
             }
 
             if (((foundTarget->msg.flags & 1U) == 0)) {
                 auto rawPacket = new uint8_t[res];
                 if (rawPacket == nullptr)
                     continue;
+
+                // Copy the whole packet we received into the peer
                 memcpy(rawPacket, ctx->rxbuf, res);
                 foundTarget->rawPacketLength = res;
                 foundTarget->rawPacket = rawPacket;

@@ -78,11 +78,21 @@ void SceNetAdhocMatchingContext::notifyHandler(EmuEnvState &emuenv, int event, S
     if (!this->handler.thread)
         this->handler.thread = emuenv.kernel.create_thread(emuenv.mem, "adhocHandlerThread");
 
-    auto vPeer = Ptr<SceNetInAddr>(alloc(emuenv.mem, sizeof(SceNetInAddr), "adhocHandlerPeer"));
-    memcpy(vPeer.get(emuenv.mem), peer, sizeof(*peer));
+    Ptr<SceNetInAddr> vPeer;
+    if (peer) {
+        vPeer = Ptr<SceNetInAddr>(alloc(emuenv.mem, sizeof(SceNetInAddr), "adhocHandlerPeer"));
+        memcpy(vPeer.get(emuenv.mem), peer, sizeof(*peer));
+    } else {
+        vPeer = Ptr<SceNetInAddr>(0);
+    }
 
-    auto vOpt = Ptr<char>(alloc(emuenv.mem, optLen, "adhocHandlerOpt"));
-    memcpy(vOpt.get(emuenv.mem), opt, optLen);
+    Ptr<char> vOpt;
+    if (opt) {
+        vOpt = Ptr<char>(alloc(emuenv.mem, optLen, "adhocHandlerOpt"));
+        memcpy(vOpt.get(emuenv.mem), opt, optLen);
+    } else {
+        vOpt = Ptr<char>(0);
+    }
 
     SceNetAdhocHandlerArguments handleArgs{
         .id = (uint32_t)this->id,
@@ -218,4 +228,15 @@ bool SceNetAdhocMatchingContext::initInputThread(EmuEnvState &emuenv) {
 
     this->inputThread = std::thread(adhocMatchingInputThread, &emuenv, this->id);
     return true;
+}
+
+bool SceNetAdhocMatchingContext::generateAddrsMsg(EmuEnvState &emuenv) {
+
+    return true;
+}
+
+SceNetAdhocMatchingTarget *SceNetAdhocMatchingContext::newTarget(uint32_t addr) {
+    auto target = new SceNetAdhocMatchingTarget();
+    // TODO: init the target to status 1
+    target->addr.s_addr = addr;
 }
