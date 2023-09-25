@@ -103,7 +103,7 @@ int adhocMatchingInputThread(EmuEnvState *emuenv, int id) {
                 foundTarget->msg.peer = foundTarget;
                 foundTarget->msg.flags = foundTarget->msg.flags | 1;
                 *(uint *)&foundTarget->keepAliveInterval = ctx->keepAliveInterval;
-                write(ctx->pipesFd[1], &foundTarget->msg, sizeof(foundTarget->msg));
+                ::write(ctx->pipesFd[1], &foundTarget->msg, sizeof(foundTarget->msg));
             }
         }
     } while (true);

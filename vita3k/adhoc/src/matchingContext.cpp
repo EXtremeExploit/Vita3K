@@ -97,7 +97,7 @@ void SceNetAdhocMatchingContext::notifyHandler(EmuEnvState &emuenv, int event, S
 }
 
 bool SceNetAdhocMatchingContext::setHelloOpt(int optlen, const void *opt) {
-    auto hi = new uint8_t[sizeof(SceNetAdhocMatchingHelloStart) + optlen + sizeof(SceNetAdhocMatchingHelloEnd)];
+    auto hi = new char[sizeof(SceNetAdhocMatchingHelloStart) + optlen + sizeof(SceNetAdhocMatchingHelloEnd)];
     this->totalHelloLength = sizeof(SceNetAdhocMatchingHelloStart) + optlen + sizeof(SceNetAdhocMatchingHelloEnd);
 
     if (this->hello != nullptr)
@@ -145,7 +145,11 @@ bool SceNetAdhocMatchingContext::broadcastHello() {
         .sin_family = AF_INET,
         .sin_port = htons(this->port),
     };
+#ifdef _WIN32
+    send_addr.sin_addr.S_un.S_addr = INADDR_BROADCAST;
+#else
     send_addr.sin_addr.s_addr = INADDR_BROADCAST;
+#endif
 
     auto sendResult = ::sendto(this->sendSocket, &this->hello, this->totalHelloLength, 0, (sockaddr *)&send_addr, sizeof(send_addr));
 
@@ -222,6 +226,8 @@ SceNetAdhocMatchingTarget *SceNetAdhocMatchingContext::newTarget(uint32_t addr) 
     auto target = new SceNetAdhocMatchingTarget();
     // TODO: init the target to status 1
     target->addr.s_addr = addr;
+
+    // TODO: do more stuff here
 
     return target;
 }

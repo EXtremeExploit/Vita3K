@@ -168,7 +168,7 @@ struct SceNetAdhocMatchingContext {
     int pipesFd[2]; // 0 = read, 1 = write
 
     unsigned int totalHelloLength;
-    uint8_t *hello;
+    char *hello;
 
     uint32_t ownAddress;
 
