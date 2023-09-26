@@ -127,7 +127,7 @@ static void convertSceSockaddrToPosix(const SceNetSockaddr *src, sockaddr *dst) 
     const SceNetSockaddrIn *src_in = (const SceNetSockaddrIn *)src;
     sockaddr_in *dst_in = (sockaddr_in *)dst;
     dst_in->sin_family = src_in->sin_family;
-    dst_in->sin_port = src_in->sin_port;
+    dst_in->sin_port = src_in->sin_vport;
     memcpy(&dst_in->sin_addr, &src_in->sin_addr, 4);
 }
 
