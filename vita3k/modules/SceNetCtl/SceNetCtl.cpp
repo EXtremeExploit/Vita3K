@@ -49,26 +49,6 @@ EXPORT(int, sceNetCtlAdhocDisconnect) {
     return UNIMPLEMENTED();
 }
 
-EXPORT(int, sceNetCtlAdhocGetInAddr, SceNetInAddr *inaddr) {
-    TRACY_FUNC(sceNetCtlAdhocGetInAddr, inaddr);
-    if (!emuenv.netctl.inited) {
-        return RET_ERROR(SCE_NET_CTL_ERROR_NOT_INITIALIZED);
-    }
-
-    if (!inaddr) {
-        return RET_ERROR(SCE_NET_CTL_ERROR_INVALID_ADDR);
-    }
-
-    struct hostent *resolved = gethostbyname("localhost"); // only loopback for now
-    if (resolved == nullptr) {
-        memset(inaddr, 0, sizeof(*inaddr));
-        return RET_ERROR(-1);
-    }
-    memcpy(&inaddr->s_addr, resolved->h_addr, sizeof(uint32_t));
-
-    return STUBBED("Return loopback");
-}
-
 EXPORT(int, sceNetCtlAdhocGetPeerList, SceSize *peerInfoNum, SceNetCtlAdhocPeerInfo *peerInfo) {
     TRACY_FUNC(sceNetCtlAdhocGetPeerList, peerInfoNum, peerInfo);
     if (!peerInfoNum) {
@@ -357,6 +337,22 @@ EXPORT(int, sceNetCtlInetGetInfo, int code, SceNetCtlInfo *info) {
             LOG_ERROR("Unknown code:{}", log_hex(code));
         }
     }
+    return 0;
+}
+
+EXPORT(int, sceNetCtlAdhocGetInAddr, SceNetInAddr *inaddr) {
+    TRACY_FUNC(sceNetCtlAdhocGetInAddr, inaddr);
+    if (!emuenv.netctl.inited) {
+        return RET_ERROR(SCE_NET_CTL_ERROR_NOT_INITIALIZED);
+    }
+
+    if (!inaddr) {
+        return RET_ERROR(SCE_NET_CTL_ERROR_INVALID_ADDR);
+    }
+
+    SceNetCtlInfo info;
+    CALL_EXPORT(sceNetCtlInetGetInfo, SCE_NETCTL_INFO_GET_IP_ADDRESS, &info);
+    inet_pton(AF_INET, info.ip_address, &inaddr->s_addr);
     return 0;
 }
 

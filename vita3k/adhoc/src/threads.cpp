@@ -19,10 +19,6 @@
 
 #include <adhoc/state.h>
 
-// s_addr can be a macro on windows
-#pragma push_macro("s_addr")
-#undef s_addr
-
 int adhocMatchingEventThread(EmuEnvState *emuenv, int id) {
     auto ctx = emuenv->adhoc.findMatchingContext(id);
 
@@ -33,26 +29,36 @@ int adhocMatchingEventThread(EmuEnvState *emuenv, int id) {
         auto flags = pipeMessage.flags;
         switch (type) {
         case SCE_NET_ADHOC_MATCHING_EVENT_PACKET: { // Packet received
-            // TODO
-
-        } break;
+            peer->msg.flags = peer->msg.flags & 0xfffffffe;
+            ctx->processPacketFromPeer(peer);
+            if (peer->rawPacket)
+                delete peer->rawPacket;
+            peer->rawPacket = 0;
+            peer->rawPacketLength = 0;
+            break;
+        }
         case SCE_NET_ADHOC_MATCHING_EVENT_UNK2: { // idk
             // TODO
-
-        } break;
+            break;
+        }
         case SCE_NET_ADHOC_MATCHING_EVENT_UNK3: { // idk
             // TODO
-
-        } break;
+            break;
+        }
         case SCE_NET_ADHOC_MATCHING_EVENT_HELLO_SEND: { // broadcast hello message to network
-            // TODO: check if we are the max member count
-            // If we are then dont broadcast the hello
-            ctx->broadcastHello();
-        } break;
+            // TODO: flags
+            int num = ctx->countTargetsWithStatusOrBetter(3);
+            // also count ourselves
+            if (num + 1 < ctx->maxnum)
+                ctx->broadcastHello();
+
+            // TODO: run the interval thingie here
+            break;
+        }
         case SCE_NET_ADHOC_MATCHING_EVENT_UNK5: {
             // TODO
-
-        } break;
+            break;
+        }
         }
     }
 
@@ -93,7 +99,7 @@ int adhocMatchingInputThread(EmuEnvState *emuenv, int id) {
             }
 
             if (((foundTarget->msg.flags & 1U) == 0)) {
-                auto rawPacket = new uint8_t[res];
+                auto rawPacket = new char[res];
                 if (rawPacket == nullptr)
                     continue;
 
@@ -102,11 +108,11 @@ int adhocMatchingInputThread(EmuEnvState *emuenv, int id) {
                 foundTarget->rawPacketLength = res;
                 foundTarget->rawPacket = rawPacket;
                 foundTarget->packetLength = packetLength + 4;
+                foundTarget->keepAliveInterval = ctx->keepAliveInterval;
 
                 foundTarget->msg.type = SCE_NET_ADHOC_MATCHING_EVENT_PACKET;
                 foundTarget->msg.peer = foundTarget;
                 foundTarget->msg.flags = foundTarget->msg.flags | 1;
-                *(uint *)&foundTarget->keepAliveInterval = ctx->keepAliveInterval;
                 write(ctx->pipesFd[1], &foundTarget->msg, sizeof(foundTarget->msg));
             }
         }
@@ -114,5 +120,3 @@ int adhocMatchingInputThread(EmuEnvState *emuenv, int id) {
 
     return 0;
 };
-
-#pragma pop_macro("s_addr")

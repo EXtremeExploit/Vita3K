@@ -15,8 +15,31 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+#include "net/types.h"
+#include "util/types.h"
 #include <adhoc/state.h>
+#include <cstring>
 #include <kernel/state.h>
+#include <sys/socket.h>
+
+void SceNetAdhocMatchingContext::unInitInputThread() {
+    // TODO!: abort all recvSocket operations
+    if (this->inputThread.joinable())
+        this->inputThread.join();
+
+    shutdown(this->recvSocket, SHUT_RDWR);
+    close(this->recvSocket);
+    this->recvSocket = 0;
+}
+
+void SceNetAdhocMatchingContext::unInitEventThread() {
+    // TODO: abort all pipe operations and make read operation return negative value on the pipe
+
+    if (this->eventThread.joinable())
+        this->eventThread.join();
+
+    // TODO: delete pipe here
+}
 
 void SceNetAdhocMatchingContext::destroy(EmuEnvState &emuenv, SceUID thread_id, const char *export_name) {
     SceNetAdhocMatchingContext *prev = emuenv.adhoc.adhocMatchingContextsList; // empty header
@@ -36,16 +59,6 @@ void SceNetAdhocMatchingContext::destroy(EmuEnvState &emuenv, SceUID thread_id, 
             // Unlink Left (Other)
             else
                 prev->next = item->next;
-
-            // Stop it first if it's still running
-            if (item->isRunning) {
-                item->isRunning = false;
-                if (item->inputThread.joinable())
-                    item->inputThread.join();
-
-                if (item->eventThread.joinable())
-                    item->eventThread.join();
-            }
             break;
         }
 
@@ -96,7 +109,7 @@ void SceNetAdhocMatchingContext::notifyHandler(EmuEnvState &emuenv, int event, S
     free(emuenv.mem, data); // free arguments
 }
 
-bool SceNetAdhocMatchingContext::setHelloOpt(int optlen, const void *opt) {
+bool SceNetAdhocMatchingContext::setHelloOpt(int optlen, void *opt) {
     auto hi = new char[sizeof(SceNetAdhocMatchingHelloStart) + optlen + sizeof(SceNetAdhocMatchingHelloEnd)];
     this->totalHelloLength = sizeof(SceNetAdhocMatchingHelloStart) + optlen + sizeof(SceNetAdhocMatchingHelloEnd);
 
@@ -104,8 +117,8 @@ bool SceNetAdhocMatchingContext::setHelloOpt(int optlen, const void *opt) {
         delete this->hello;
     this->hello = hi;
 
-    ((SceNetAdhocMatchingHelloStart *)hi)->unk00 = 1;
-    ((SceNetAdhocMatchingHelloStart *)hi)->unk01 = 1;
+    ((SceNetAdhocMatchingHelloStart *)hi)->one = 1;
+    ((SceNetAdhocMatchingHelloStart *)hi)->packetType = SCE_NET_ADHOC_MATCHING_PACKET_TYPE_HELLO;
 
     auto nRexmtInterval = htonl(this->rexmtInterval);
     memcpy(&((SceNetAdhocMatchingHelloStart *)hi)->nRexmtInterval, &nRexmtInterval, sizeof(nRexmtInterval));
@@ -223,10 +236,6 @@ bool SceNetAdhocMatchingContext::initInputThread(EmuEnvState &emuenv) {
     return true;
 }
 
-bool SceNetAdhocMatchingContext::generateAddrsMsg(EmuEnvState &emuenv) {
-    return true;
-}
-
 SceNetAdhocMatchingTarget *SceNetAdhocMatchingContext::newTarget(uint32_t addr) {
     auto target = new SceNetAdhocMatchingTarget();
     // TODO: init the target to status 1
@@ -235,4 +244,113 @@ SceNetAdhocMatchingTarget *SceNetAdhocMatchingContext::newTarget(uint32_t addr) 
     // TODO: do more stuff here
 
     return target;
+}
+
+int SceNetAdhocMatchingContext::countTargetsWithStatusOrBetter(int status) {
+    int i = 0;
+    SceNetAdhocMatchingTarget *target;
+    for (target = this->targets; target != nullptr; target = target->next) {
+        if (target->status >= status)
+            i++;
+    }
+    return i;
+}
+
+void SceNetAdhocMatchingContext::processPacketFromPeer(SceNetAdhocMatchingTarget *target) {
+    SceNetAdhocMatchingPacketType packetType;
+    memcpy(&packetType, target->rawPacket + 1, sizeof(packetType));
+
+    SceNetAdhocMatchingMode mode = (SceNetAdhocMatchingMode)this->mode;
+    if (mode == SCE_NET_ADHOC_MATCHING_MODE_PARENT) {
+        // If we received any of these 2 packets and we are the parent, ignore them, we dont care
+        if (packetType == SCE_NET_ADHOC_MATCHING_PACKET_TYPE_HELLO || packetType == SCE_NET_ADHOC_MATCHING_PACKET_TYPE_ADDRS)
+            return;
+    } else {
+        if (mode != SCE_NET_ADHOC_MATCHING_MODE_CHILD) {
+            bool peerIsHigherAddrThanUs = false; // TODO: not stub this to false
+            if (peerIsHigherAddrThanUs) {
+                if (packetType == SCE_NET_ADHOC_MATCHING_PACKET_TYPE_ADDRS)
+                    return;
+            } else {
+                if (packetType == SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK7)
+                    return;
+            }
+        }
+    }
+
+    if ((packetType == SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK2 || packetType == SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK3) && target->rawPacketLength - target->packetLength > 15) {
+        // TODO
+    }
+
+    // TODO
+}
+
+void SceNetAdhocMatchingContext::getAddressesWithStatusOrBetter(int status, SceNetInAddr *addrs, int *pCount) {
+    int count = 0;
+    SceNetInAddr *dst = addrs;
+
+    for (auto target = this->targets; target != nullptr; target = target->next) {
+        if (target->status >= status) {
+            if (addrs) {
+                if (*pCount <= count)
+                    break;
+                memcpy(&dst, &target->addr, sizeof(target->addr));
+            }
+            dst++;
+            count++;
+        }
+    }
+    *pCount = count;
+}
+
+void SceNetAdhocMatchingContext::generateAddrsMsg() {
+    auto count = this->countTargetsWithStatusOrBetter(5);
+    auto addrMsgLen = count * sizeof(uint32_t) + sizeof(SceNetAdhocMatchingAddrMsgStart);
+    SceUShort16 totalCount = count + 1;
+
+    SceNetAdhocMatchingAddrMsgStart *msg = (SceNetAdhocMatchingAddrMsgStart *)new char[addrMsgLen];
+
+    msg->one = 1;
+    msg->type = SCE_NET_ADHOC_MATCHING_PACKET_TYPE_ADDRS;
+
+    auto nPacketLength = htons((totalCount & 0b0011111111111111) << 2);
+    memcpy(&msg->packetLength, &nPacketLength, sizeof(nPacketLength));
+    memcpy(&msg->ownAddress, &this->ownAddress, sizeof(this->ownAddress));
+
+    getAddressesWithStatusOrBetter(5, (SceNetInAddr *)(msg + sizeof(SceNetAdhocMatchingAddrMsgStart)), &count);
+
+    if (this->addrMsg)
+        delete this->addrMsg;
+
+    this->addrMsgLen = addrMsgLen;
+    this->addrMsg = (char *)msg;
+}
+void SceNetAdhocMatchingContext::getMembers(unsigned int *membersNum, SceNetAdhocMatchingMember *members) {
+    uint uVar1;
+    int currentSize;
+    uint otherI;
+    SceNetAdhocMatchingMember *dst;
+    int totalSize;
+    SceSize i;
+
+    // TODO: touch this so it doesnt look like trash
+    totalSize = this->addrMsgLen;
+    uVar1 = *membersNum;
+    otherI = 0;
+    currentSize = 4;
+    dst = members;
+    i = 0;
+    if (4 < totalSize) {
+        do {
+            if ((members) && (otherI < uVar1)) {
+                memcpy(dst, this->addrMsg + currentSize, 4);
+                totalSize = this->addrMsgLen;
+            }
+            otherI++;
+            currentSize += 4;
+            dst++;
+            i = otherI;
+        } while (currentSize < totalSize);
+    }
+    *membersNum = i;
 }

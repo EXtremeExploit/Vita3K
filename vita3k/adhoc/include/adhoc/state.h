@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "util/types.h"
 #include <module/module.h>
 
 #include <kernel/callback.h>
@@ -28,7 +29,6 @@
 #define SCE_NET_ADHOC_MATCHING_MAXDATALEN 9204
 #define SCE_NET_ADHOC_MATCHING_MAXHELLOOPTLEN 1426
 
-DECL_EXPORT(int, sceNetGetMacAddress, SceNetEtherAddr *addr, int flags);
 DECL_EXPORT(SceInt32, sceNetCtlAdhocGetInAddr, SceNetInAddr *inaddr);
 
 int adhocMatchingEventThread(EmuEnvState *emuenv, int id);
@@ -72,7 +72,7 @@ enum SceNetAdhocMatchingErrorCode {
     SCE_NET_ADHOC_MATCHING_ERROR_INVALID_ALIGNMENT = 0x80413119
 };
 
-enum SceNetAdhocMatchingMode {
+enum SceNetAdhocMatchingMode : uint8_t {
     SCE_NET_ADHOC_MATCHING_MODE_PARENT = 1,
     SCE_NET_ADHOC_MATCHING_MODE_CHILD,
     SCE_NET_ADHOC_MATCHING_MODE_P2P
@@ -99,9 +99,23 @@ struct SceNetAdhocMatchingHandler {
     ThreadStatePtr thread;
 };
 
+enum SceNetAdhocMatchingPacketType : uint8_t {
+    SCE_NET_ADHOC_MATCHING_PACKET_TYPE_HELLO = 1,
+    SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK2 = 2,
+    SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK3 = 3,
+    SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK4 = 4,
+    SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK5 = 5,
+    SCE_NET_ADHOC_MATCHING_PACKET_TYPE_ADDRS = 6,
+    SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK7 = 7,
+    SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK8 = 8,
+    SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK9 = 9,
+    SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK10 = 10,
+    SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK11 = 11
+};
+
 struct SceNetAdhocMatchingHelloStart {
-    uint8_t unk00; //! ALWAYS 1
-    uint8_t unk01;
+    uint8_t one; //! ALWAYS 1
+    uint8_t packetType;
     SceUShort16 nPacketLength;
     int nHelloInterval;
     int nRexmtInterval;
@@ -130,21 +144,38 @@ struct SceNetAdhocMatchingPipeMessage {
     int flags;
 };
 
+struct SceNetAdhocMatchingMember {
+    SceNetInAddr addr;
+};
+
 struct SceNetAdhocMatchingTarget {
     SceNetAdhocMatchingTarget *next;
     int status;
     SceNetInAddr addr;
     int rawPacketLength;
-    void *rawPacket;
+    char *rawPacket;
     unsigned int packetLength;
     unsigned int keepAliveInterval;
     SceNetAdhocMatchingPipeMessage msg;
 };
 
+struct SceNetAdhocMatchingAddrMsgStart {
+    uint8_t one;
+    uint8_t type;
+    SceUShort16 packetLength;
+    uint32_t ownAddress;
+};
+
+enum SceNetAdhocMatchingContextStatus {
+    SCE_NET_ADHOC_MATCHING_CONTEXT_STATUS_NOT_RUNNING = 0,
+    SCE_NET_ADHOC_MATCHING_CONTEXT_STATUS_STOPPING = 1,
+    SCE_NET_ADHOC_MATCHING_CONTEXT_STATUS_RUNNING = 2,
+};
+
 struct SceNetAdhocMatchingContext {
     SceNetAdhocMatchingContext *next;
     int id;
-    bool isRunning = false;
+    SceNetAdhocMatchingContextStatus status = SCE_NET_ADHOC_MATCHING_CONTEXT_STATUS_NOT_RUNNING;
     int mode;
     int maxnum;
     SceUShort16 port;
@@ -163,8 +194,6 @@ struct SceNetAdhocMatchingContext {
     int sendSocket;
     int recvSocket; // Socket used by parent to broadcast
 
-    SceNetEtherAddr mac;
-
     int pipesFd[2]; // 0 = read, 1 = write
 
     unsigned int totalHelloLength;
@@ -172,13 +201,18 @@ struct SceNetAdhocMatchingContext {
 
     uint32_t ownAddress;
 
+    int addrMsgLen;
+    char *addrMsg;
+
     int memberCount;
 
     SceNetAdhocMatchingTarget *targets;
     SceNetAdhocMatchingTarget *findTargetByAddr(uint32_t addr);
     SceNetAdhocMatchingTarget *newTarget(uint32_t addr);
-    bool generateAddrsMsg(EmuEnvState &emuenv);
+    void generateAddrsMsg();
 
+    void processPacketFromPeer(SceNetAdhocMatchingTarget *peer);
+    int countTargetsWithStatusOrBetter(int status);
     void destroy(EmuEnvState &emuenv, SceUID thread_id, const char *export_name);
 
     void notifyHandler(EmuEnvState &emuenv, int event, SceNetInAddr *peer, int optLen, void *opt);
@@ -187,11 +221,18 @@ struct SceNetAdhocMatchingContext {
     bool initEventHandler(EmuEnvState &emuenv);
     bool initInputThread(EmuEnvState &emuenv);
 
+    void unInitInputThread();
+    void unInitEventThread();
+
     bool broadcastHello();
+
+    void getAddressesWithStatusOrBetter(int status, SceNetInAddr *addrs, int *pCount);
+
+    void getMembers(unsigned int *membersNum, SceNetAdhocMatchingMember *members);
 
     // Hello optional data
     bool getHelloOpt(int *oOptlen, void *oOpt);
-    bool setHelloOpt(int optlen, const void *opt);
+    bool setHelloOpt(int optlen, void *opt);
 };
 
 struct AdhocState {
