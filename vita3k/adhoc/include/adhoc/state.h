@@ -217,12 +217,14 @@ struct SceNetAdhocMatchingContext {
 
     void notifyHandler(EmuEnvState &emuenv, int event, SceNetInAddr *peer, int optLen, void *opt);
 
-    bool initSendSocket();
+    bool initSendSocket(EmuEnvState &emuenv, SceUID thread_id);
     bool initEventHandler(EmuEnvState &emuenv);
     bool initInputThread(EmuEnvState &emuenv);
 
     void unInitInputThread();
     void unInitEventThread();
+    void unInitAddrMsg();
+    void unInitSendSocket();
 
     bool broadcastHello();
 

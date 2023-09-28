@@ -352,6 +352,11 @@ EXPORT(int, sceNetCtlAdhocGetInAddr, SceNetInAddr *inaddr) {
 
     SceNetCtlInfo info;
     CALL_EXPORT(sceNetCtlInetGetInfo, SCE_NETCTL_INFO_GET_IP_ADDRESS, &info);
+    if(std::string_view(info.ip_address).starts_with("127."))
+        return RET_ERROR(-1); // TODO
+        
+
+
     inet_pton(AF_INET, info.ip_address, &inaddr->s_addr);
     return 0;
 }

@@ -15,12 +15,15 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-#include "net/types.h"
-#include "util/types.h"
 #include <adhoc/state.h>
-#include <cstring>
+
+#include <emuenv/state.h>
 #include <kernel/state.h>
+#include <net/types.h>
 #include <sys/socket.h>
+#include <util/types.h>
+
+#include <cstring>
 
 void SceNetAdhocMatchingContext::unInitInputThread() {
     // TODO!: abort all recvSocket operations
@@ -39,6 +42,21 @@ void SceNetAdhocMatchingContext::unInitEventThread() {
         this->eventThread.join();
 
     // TODO: delete pipe here
+}
+
+void SceNetAdhocMatchingContext::unInitSendSocket() {
+    // TODO: abort send socket operations
+    shutdown(this->sendSocket, 0);
+    close(this->sendSocket);
+}
+
+void SceNetAdhocMatchingContext::unInitAddrMsg() {
+    if (this->addrMsgLen <= 0)
+        return;
+
+    this->addrMsgLen = 0;
+    delete this->addrMsg;
+    this->addrMsg = 0;
 }
 
 void SceNetAdhocMatchingContext::destroy(EmuEnvState &emuenv, SceUID thread_id, const char *export_name) {
@@ -188,10 +206,26 @@ SceNetAdhocMatchingTarget *SceNetAdhocMatchingContext::findTargetByAddr(uint32_t
     return item;
 };
 
-bool SceNetAdhocMatchingContext::initSendSocket() {
+bool SceNetAdhocMatchingContext::initSendSocket(EmuEnvState &emuenv, SceUID thread_id) {
+    SceNetInAddr ownAddr;
+    CALL_EXPORT(sceNetCtlAdhocGetInAddr, &ownAddr);
+    this->ownAddress = ownAddr.s_addr;
+
     this->sendSocket = socket(AF_INET, SOCK_DGRAM, 0);
     if (this->sendSocket < 0)
         return false; // what to return here
+
+    sockaddr_in addr = {
+        .sin_family = AF_INET,
+        .sin_port = htons(this->port + 1)
+    };
+
+    auto bindResult = bind(this->sendSocket, (sockaddr *)&addr, sizeof(addr));
+    if (bindResult < 0) {
+        shutdown(this->sendSocket, 0);
+        close(this->sendSocket);
+        return false;
+    }
 
     int flag = 1;
     if (setsockopt(this->sendSocket, SOL_SOCKET, SO_BROADCAST, &flag, sizeof(flag)) < 0)
