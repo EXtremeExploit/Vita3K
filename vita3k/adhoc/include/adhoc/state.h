@@ -238,11 +238,11 @@ struct SceNetAdhocMatchingContext {
     bool searchTimedFunc(int (*entry)(void *));
     int delTimedFunc(int (*entry)(void *));
 
-    void processPacketFromPeer(SceNetAdhocMatchingTarget *peer);
+    void processPacketFromPeer(EmuEnvState *emuenv, SceNetAdhocMatchingTarget *peer);
     int countTargetsWithStatusOrBetter(int status);
     void destroy(EmuEnvState &emuenv, SceUID thread_id, const char *export_name);
 
-    void notifyHandler(EmuEnvState &emuenv, int event, SceNetInAddr *peer, int optLen, void *opt);
+    void notifyHandler(EmuEnvState *emuenv, int event, SceNetInAddr *peer, int optLen, void *opt);
 
     bool initSendSocket(EmuEnvState &emuenv, SceUID thread_id);
     bool initEventHandler(EmuEnvState &emuenv);

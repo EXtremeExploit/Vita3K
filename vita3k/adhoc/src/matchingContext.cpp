@@ -15,6 +15,7 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+#include "util/log.h"
 #include <adhoc/state.h>
 
 #include <emuenv/state.h>
@@ -218,25 +219,25 @@ int SceNetAdhocMatchingContext::delTimedFunc(int (*entry)(void *)) {
     return 0;
 }
 
-void SceNetAdhocMatchingContext::notifyHandler(EmuEnvState &emuenv, int event, SceNetInAddr *peer, int optLen, void *opt) {
+void SceNetAdhocMatchingContext::notifyHandler(EmuEnvState *emuenv, int event, SceNetInAddr *peer, int optLen, void *opt) {
     if (!this->handler.entry)
         return;
 
     if (!this->handler.thread)
-        this->handler.thread = emuenv.kernel.create_thread(emuenv.mem, "adhocHandlerThread");
+        this->handler.thread = emuenv->kernel.create_thread(emuenv->mem, "adhocHandlerThread");
 
     Ptr<SceNetInAddr> vPeer;
     if (peer) {
-        vPeer = Ptr<SceNetInAddr>(alloc(emuenv.mem, sizeof(SceNetInAddr), "adhocHandlerPeer"));
-        memcpy(vPeer.get(emuenv.mem), peer, sizeof(*peer));
+        vPeer = Ptr<SceNetInAddr>(alloc(emuenv->mem, sizeof(SceNetInAddr), "adhocHandlerPeer"));
+        memcpy(vPeer.get(emuenv->mem), peer, sizeof(*peer));
     } else {
         vPeer = Ptr<SceNetInAddr>(0);
     }
 
     Ptr<char> vOpt;
     if (opt) {
-        vOpt = Ptr<char>(alloc(emuenv.mem, optLen, "adhocHandlerOpt"));
-        memcpy(vOpt.get(emuenv.mem), opt, optLen);
+        vOpt = Ptr<char>(alloc(emuenv->mem, optLen, "adhocHandlerOpt"));
+        memcpy(vOpt.get(emuenv->mem), opt, optLen);
     } else {
         vOpt = Ptr<char>(0);
     }
@@ -249,14 +250,14 @@ void SceNetAdhocMatchingContext::notifyHandler(EmuEnvState &emuenv, int event, S
         .opt = vOpt.address()
     };
 
-    auto data = Ptr<SceNetAdhocHandlerArguments>(alloc(emuenv.mem, sizeof(handleArgs), "handleArgs"));
-    memcpy(data.get(emuenv.mem), &handleArgs, sizeof(handleArgs));
+    auto data = Ptr<SceNetAdhocHandlerArguments>(alloc(emuenv->mem, sizeof(handleArgs), "handleArgs"));
+    memcpy(data.get(emuenv->mem), &handleArgs, sizeof(handleArgs));
 
     this->handler.thread->run_guest_function(this->handler.entry.address(), sizeof(SceNetAdhocHandlerArguments), data);
 
-    free(emuenv.mem, vPeer); // free peer
-    free(emuenv.mem, vOpt); // free opt
-    free(emuenv.mem, data); // free arguments
+    free(emuenv->mem, vPeer); // free peer
+    free(emuenv->mem, vOpt); // free opt
+    free(emuenv->mem, data); // free arguments
 };
 
 bool SceNetAdhocMatchingContext::getHelloOpt(int *oOptlen, void *oOpt) {
@@ -359,7 +360,7 @@ int SceNetAdhocMatchingContext::countTargetsWithStatusOrBetter(int status) {
     return i;
 }
 
-void SceNetAdhocMatchingContext::processPacketFromPeer(SceNetAdhocMatchingTarget *target) {
+void SceNetAdhocMatchingContext::processPacketFromPeer(EmuEnvState *emuenv, SceNetAdhocMatchingTarget *target) {
     SceNetAdhocMatchingPacketType packetType;
     memcpy(&packetType, target->rawPacket + 1, sizeof(packetType));
 
@@ -384,6 +385,34 @@ void SceNetAdhocMatchingContext::processPacketFromPeer(SceNetAdhocMatchingTarget
     if ((packetType == SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK2 || packetType == SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK3) && target->rawPacketLength - target->packetLength > 15) {
         // TODO
     }
+
+    auto count = this->countTargetsWithStatusOrBetter(3);
+    switch (packetType) {
+    case SCE_NET_ADHOC_MATCHING_PACKET_TYPE_HELLO:
+        if (target->packetLength - 4 > 7) {
+            LOG_CRITICAL("Received hello");
+            if (target->status == 1) {
+                // TODO: something happens here, idk what it is
+                if (count + 1 < this->maxnum && this->handler.entry) {
+                    if (target->packetLength - sizeof(SceNetAdhocMatchingHelloStart) < 1)
+                        this->notifyHandler(emuenv, SCE_NET_ADHOC_MATCHING_HANDLER_EVENT_HELLO, &target->addr, 0, nullptr);
+                    else
+                        this->notifyHandler(emuenv, SCE_NET_ADHOC_MATCHING_HANDLER_EVENT_HELLO, &target->addr, target->packetLength - sizeof(SceNetAdhocMatchingHelloStart), target->rawPacket + sizeof(SceNetAdhocMatchingHelloStart));
+                }
+            }
+        }
+        break;
+    case SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK2:
+    case SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK3:
+    case SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK4:
+    case SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK5:
+    case SCE_NET_ADHOC_MATCHING_PACKET_TYPE_ADDRS:
+    case SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK7:
+    case SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK8:
+    case SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK9:
+    case SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK10:
+    case SCE_NET_ADHOC_MATCHING_PACKET_TYPE_UNK11: break;
+    };
 
     // TODO
 }

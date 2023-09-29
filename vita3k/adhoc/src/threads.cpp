@@ -46,7 +46,7 @@ int adhocMatchingEventThread(EmuEnvState *emuenv, int id) {
         switch (type) {
         case SCE_NET_ADHOC_MATCHING_EVENT_PACKET: { // Packet received
             peer->msg.flags &= ~1U;
-            ctx->processPacketFromPeer(peer);
+            ctx->processPacketFromPeer(emuenv,peer);
             if (peer->rawPacket)
                 delete peer->rawPacket;
             peer->rawPacket = 0;
