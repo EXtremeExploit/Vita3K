@@ -18,10 +18,12 @@
 #pragma once
 
 #include "util/types.h"
+#include <condition_variable>
 #include <module/module.h>
 
 #include <kernel/callback.h>
 #include <mem/util.h>
+#include <mutex>
 #include <net/state.h>
 
 #define SCE_NET_ADHOC_MATCHING_MAXNUM 16
@@ -31,8 +33,10 @@
 
 DECL_EXPORT(SceInt32, sceNetCtlAdhocGetInAddr, SceNetInAddr *inaddr);
 
+int sendHelloReqToPipe(void *arg);
 int adhocMatchingEventThread(EmuEnvState *emuenv, int id);
 int adhocMatchingInputThread(EmuEnvState *emuenv, int id);
+int adhocMatchingCalloutThread(EmuEnvState *emuenv, int id);
 
 struct SceNetAdhocHandlerArguments {
     uint32_t id;
@@ -172,6 +176,21 @@ enum SceNetAdhocMatchingContextStatus {
     SCE_NET_ADHOC_MATCHING_CONTEXT_STATUS_RUNNING = 2,
 };
 
+struct SceNetAdhocMatchingCalloutFunction {
+    uint64_t execAt;
+    void *args;
+    bool ran = false;
+};
+
+struct SceNetAdhocMatchingCalloutSyncing {
+    std::thread calloutThread;
+    std::unique_lock<std::mutex> calloutMutex;
+    std::condition_variable condvar;
+    bool calloutThreadIsRunning;
+    bool calloutShouldExit;
+    std::map<int (*)(void *), SceNetAdhocMatchingCalloutFunction> functions;
+};
+
 struct SceNetAdhocMatchingContext {
     SceNetAdhocMatchingContext *next;
     int id;
@@ -198,6 +217,7 @@ struct SceNetAdhocMatchingContext {
 
     unsigned int totalHelloLength;
     char *hello;
+    bool helloFuncInQueue;
 
     uint32_t ownAddress;
 
@@ -206,10 +226,18 @@ struct SceNetAdhocMatchingContext {
 
     int memberCount;
 
+    SceNetAdhocMatchingPipeMessage helloPipeMsg;
+
+    SceNetAdhocMatchingCalloutSyncing calloutSyncing;
+
     SceNetAdhocMatchingTarget *targets;
     SceNetAdhocMatchingTarget *findTargetByAddr(uint32_t addr);
     SceNetAdhocMatchingTarget *newTarget(uint32_t addr);
     void generateAddrsMsg();
+
+    int addTimedFunc(int (*entry)(void *), void *arg, uint64_t timeFromNow);
+    bool searchTimedFunc(int (*entry)(void *));
+    int delTimedFunc(int (*entry)(void *));
 
     void processPacketFromPeer(SceNetAdhocMatchingTarget *peer);
     int countTargetsWithStatusOrBetter(int status);
@@ -220,10 +248,12 @@ struct SceNetAdhocMatchingContext {
     bool initSendSocket(EmuEnvState &emuenv, SceUID thread_id);
     bool initEventHandler(EmuEnvState &emuenv);
     bool initInputThread(EmuEnvState &emuenv);
+    bool initCalloutThread(EmuEnvState &emuenv);
 
     void unInitInputThread();
     void unInitEventThread();
     void unInitAddrMsg();
+    void unInitHelloMsg();
     void unInitSendSocket();
 
     bool broadcastHello();
@@ -239,6 +269,7 @@ struct SceNetAdhocMatchingContext {
 
 struct AdhocState {
     bool inited = false;
+    std::mutex mutex;
     SceUID next_uid = 0;
     SceNetInAddr addr;
     SceNetAdhocMatchingContext *adhocMatchingContextsList = NULL;

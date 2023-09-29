@@ -21,190 +21,10 @@
 #include <kernel/state.h>
 #include <net/types.h>
 #include <sys/socket.h>
+#include <thread>
 #include <util/types.h>
 
 #include <cstring>
-
-void SceNetAdhocMatchingContext::unInitInputThread() {
-    // TODO!: abort all recvSocket operations
-    if (this->inputThread.joinable())
-        this->inputThread.join();
-
-    shutdown(this->recvSocket, SHUT_RDWR);
-    close(this->recvSocket);
-    this->recvSocket = 0;
-}
-
-void SceNetAdhocMatchingContext::unInitEventThread() {
-    // TODO: abort all pipe operations and make read operation return negative value on the pipe
-
-    if (this->eventThread.joinable())
-        this->eventThread.join();
-
-    // TODO: delete pipe here
-}
-
-void SceNetAdhocMatchingContext::unInitSendSocket() {
-    // TODO: abort send socket operations
-    shutdown(this->sendSocket, 0);
-    close(this->sendSocket);
-}
-
-void SceNetAdhocMatchingContext::unInitAddrMsg() {
-    if (this->addrMsgLen <= 0)
-        return;
-
-    this->addrMsgLen = 0;
-    delete this->addrMsg;
-    this->addrMsg = 0;
-}
-
-void SceNetAdhocMatchingContext::destroy(EmuEnvState &emuenv, SceUID thread_id, const char *export_name) {
-    SceNetAdhocMatchingContext *prev = emuenv.adhoc.adhocMatchingContextsList; // empty header
-    SceNetAdhocMatchingContext *current = emuenv.adhoc.adhocMatchingContextsList->next; // the first valid node
-
-    // Context Pointer
-    SceNetAdhocMatchingContext *item = emuenv.adhoc.adhocMatchingContextsList;
-
-    // Iterate contexts
-    for (; item != nullptr; item = item->next) {
-        // Found matching ID
-        if (item->id == this->id) {
-            // Unlink Left (Beginning)
-            if (prev == nullptr)
-                emuenv.adhoc.adhocMatchingContextsList = item->next;
-
-            // Unlink Left (Other)
-            else
-                prev->next = item->next;
-            break;
-        }
-
-        // Set Previous Reference
-        prev = nullptr;
-    }
-    delete item;
-};
-
-void SceNetAdhocMatchingContext::notifyHandler(EmuEnvState &emuenv, int event, SceNetInAddr *peer, int optLen, void *opt) {
-    if (!this->handler.entry)
-        return;
-
-    if (!this->handler.thread)
-        this->handler.thread = emuenv.kernel.create_thread(emuenv.mem, "adhocHandlerThread");
-
-    Ptr<SceNetInAddr> vPeer;
-    if (peer) {
-        vPeer = Ptr<SceNetInAddr>(alloc(emuenv.mem, sizeof(SceNetInAddr), "adhocHandlerPeer"));
-        memcpy(vPeer.get(emuenv.mem), peer, sizeof(*peer));
-    } else {
-        vPeer = Ptr<SceNetInAddr>(0);
-    }
-
-    Ptr<char> vOpt;
-    if (opt) {
-        vOpt = Ptr<char>(alloc(emuenv.mem, optLen, "adhocHandlerOpt"));
-        memcpy(vOpt.get(emuenv.mem), opt, optLen);
-    } else {
-        vOpt = Ptr<char>(0);
-    }
-
-    SceNetAdhocHandlerArguments handleArgs{
-        .id = (uint32_t)this->id,
-        .event = (uint32_t)event,
-        .peer = vPeer.address(),
-        .optlen = (uint32_t)optLen,
-        .opt = vOpt.address()
-    };
-
-    auto data = Ptr<SceNetAdhocHandlerArguments>(alloc(emuenv.mem, sizeof(handleArgs), "handleArgs"));
-    memcpy(data.get(emuenv.mem), &handleArgs, sizeof(handleArgs));
-
-    this->handler.thread->run_guest_function(this->handler.entry.address(), sizeof(SceNetAdhocHandlerArguments), data);
-
-    free(emuenv.mem, vPeer); // free peer
-    free(emuenv.mem, vOpt); // free opt
-    free(emuenv.mem, data); // free arguments
-}
-
-bool SceNetAdhocMatchingContext::setHelloOpt(int optlen, void *opt) {
-    auto hi = new char[sizeof(SceNetAdhocMatchingHelloStart) + optlen + sizeof(SceNetAdhocMatchingHelloEnd)];
-    this->totalHelloLength = sizeof(SceNetAdhocMatchingHelloStart) + optlen + sizeof(SceNetAdhocMatchingHelloEnd);
-
-    if (this->hello != nullptr)
-        delete this->hello;
-    this->hello = hi;
-
-    ((SceNetAdhocMatchingHelloStart *)hi)->one = 1;
-    ((SceNetAdhocMatchingHelloStart *)hi)->packetType = SCE_NET_ADHOC_MATCHING_PACKET_TYPE_HELLO;
-
-    auto nRexmtInterval = htonl(this->rexmtInterval);
-    memcpy(&((SceNetAdhocMatchingHelloStart *)hi)->nRexmtInterval, &nRexmtInterval, sizeof(nRexmtInterval));
-
-    auto nHelloInterval = htonl(this->helloInterval);
-    memcpy(&((SceNetAdhocMatchingHelloStart *)hi)->nHelloInterval, &nHelloInterval, sizeof(nHelloInterval));
-
-    auto packetLength = htons(optlen + sizeof(nRexmtInterval) + sizeof(nHelloInterval));
-    memcpy(&((SceNetAdhocMatchingHelloStart *)hi)->nPacketLength, &packetLength, sizeof(packetLength));
-
-    memcpy(hi + sizeof(SceNetAdhocMatchingHelloStart), opt, optlen);
-
-    uint32_t NUMBAONE = 1;
-    memcpy(&((SceNetAdhocMatchingHelloEnd *)(hi + sizeof(SceNetAdhocMatchingHelloStart) + optlen))->unk1, &NUMBAONE, sizeof(NUMBAONE));
-    memset(&((SceNetAdhocMatchingHelloEnd *)(hi + sizeof(SceNetAdhocMatchingHelloStart) + optlen))->unk2, 0, 12);
-
-    return true;
-};
-
-bool SceNetAdhocMatchingContext::getHelloOpt(int *oOptlen, void *oOpt) {
-    int optLen = this->totalHelloLength - sizeof(SceNetAdhocMatchingHelloStart);
-
-    if (oOpt != nullptr && 0 < optLen) {
-        // Whichever is less to not write more than app allocated for opt data
-        if (*oOptlen < optLen)
-            optLen = *oOptlen;
-
-        memcpy(oOpt, this->hello + sizeof(SceNetAdhocMatchingHelloStart), optLen);
-    }
-    *oOptlen = optLen;
-
-    return true;
-};
-
-bool SceNetAdhocMatchingContext::broadcastHello() {
-    sockaddr_in send_addr = {
-        .sin_family = AF_INET,
-        .sin_port = htons(this->port),
-    };
-#ifdef _WIN32
-    send_addr.sin_addr.S_un.S_addr = INADDR_BROADCAST;
-#else
-    send_addr.sin_addr.s_addr = INADDR_BROADCAST;
-#endif
-
-    auto sendResult = sendto(this->sendSocket, &this->hello, this->totalHelloLength, 0, (sockaddr *)&send_addr, sizeof(send_addr));
-
-    if (sendResult == EAGAIN)
-        sendResult = 0;
-
-    if (sendResult < 0)
-        return false;
-    // usleep(this->helloInterval);
-
-    return true;
-};
-
-SceNetAdhocMatchingTarget *SceNetAdhocMatchingContext::findTargetByAddr(uint32_t addr) {
-    SceNetAdhocMatchingTarget *item = this->targets;
-    if (item != nullptr) {
-        do {
-            if (item->addr.s_addr == addr)
-                return item;
-            item = item->next;
-        } while (item != nullptr);
-    }
-    return item;
-};
 
 bool SceNetAdhocMatchingContext::initSendSocket(EmuEnvState &emuenv, SceUID thread_id) {
     SceNetInAddr ownAddr;
@@ -269,6 +89,256 @@ bool SceNetAdhocMatchingContext::initInputThread(EmuEnvState &emuenv) {
     this->inputThread = std::thread(adhocMatchingInputThread, &emuenv, this->id);
     return true;
 }
+
+bool SceNetAdhocMatchingContext::initCalloutThread(EmuEnvState &emuenv) {
+    if (this->calloutSyncing.calloutThreadIsRunning)
+        return false;
+
+    this->calloutSyncing.calloutShouldExit = false;
+
+    this->calloutSyncing.calloutThread = std::thread(adhocMatchingCalloutThread, &emuenv, this->id);
+    this->calloutSyncing.calloutThreadIsRunning = true;
+    return true;
+};
+
+void SceNetAdhocMatchingContext::unInitInputThread() {
+    // TODO!: abort all recvSocket operations
+    if (this->inputThread.joinable())
+        this->inputThread.join();
+
+    shutdown(this->recvSocket, SHUT_RDWR);
+    close(this->recvSocket);
+    this->recvSocket = 0;
+}
+
+void SceNetAdhocMatchingContext::unInitEventThread() {
+    // TODO: abort all pipe operations and make read operation return negative value on the pipe
+
+    if (this->eventThread.joinable())
+        this->eventThread.join();
+
+    // TODO: delete pipe here
+}
+
+void SceNetAdhocMatchingContext::unInitSendSocket() {
+    // TODO: abort send socket operations
+    shutdown(this->sendSocket, 0);
+    close(this->sendSocket);
+}
+
+void SceNetAdhocMatchingContext::unInitAddrMsg() {
+    if (this->addrMsgLen <= 0)
+        return;
+
+    this->addrMsgLen = 0;
+    delete this->addrMsg;
+    this->addrMsg = 0;
+}
+
+void SceNetAdhocMatchingContext::destroy(EmuEnvState &emuenv, SceUID thread_id, const char *export_name) {
+    SceNetAdhocMatchingContext *prev = emuenv.adhoc.adhocMatchingContextsList; // empty header
+    SceNetAdhocMatchingContext *current = emuenv.adhoc.adhocMatchingContextsList->next; // the first valid node
+
+    // Context Pointer
+    SceNetAdhocMatchingContext *item = emuenv.adhoc.adhocMatchingContextsList;
+
+    // Iterate contexts
+    for (; item != nullptr; item = item->next) {
+        // Found matching ID
+        if (item->id == this->id) {
+            // Unlink Left (Beginning)
+            if (prev == nullptr)
+                emuenv.adhoc.adhocMatchingContextsList = item->next;
+
+            // Unlink Left (Other)
+            else
+                prev->next = item->next;
+            break;
+        }
+
+        // Set Previous Reference
+        prev = nullptr;
+    }
+    delete item;
+};
+
+int SceNetAdhocMatchingContext::addTimedFunc(int (*entry)(void *), void *arg, uint64_t timeFromNow) {
+    if (!this->calloutSyncing.calloutThreadIsRunning)
+        return -1;
+
+    std::lock_guard guard(this->calloutSyncing.calloutMutex);
+
+    auto funcIt = this->calloutSyncing.functions.find(entry);
+    if (funcIt != this->calloutSyncing.functions.end())
+        return -1; // function is already one the lists
+
+    uint64_t now = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+
+    auto execAt = now + timeFromNow;
+
+    SceNetAdhocMatchingCalloutFunction func = {
+        .execAt = execAt,
+        .args = arg,
+        .ran = false
+    };
+
+    this->calloutSyncing.functions.insert({ entry, func });
+
+    return 0;
+};
+
+void SceNetAdhocMatchingContext::unInitHelloMsg() {
+    if (this->totalHelloLength <= 0)
+        return;
+
+    delete this->hello;
+    this->hello = nullptr;
+    this->totalHelloLength = 0;
+}
+bool SceNetAdhocMatchingContext::searchTimedFunc(int (*entry)(void *)) {
+    std::lock_guard guard(this->calloutSyncing.calloutMutex);
+
+    auto funcIt = this->calloutSyncing.functions.find(entry);
+    if (funcIt == this->calloutSyncing.functions.end())
+        return false; // function is not on the list, nothing do do c:
+    return true;
+}
+
+int SceNetAdhocMatchingContext::delTimedFunc(int (*entry)(void *)) {
+    if (!this->calloutSyncing.calloutThreadIsRunning)
+        return -1;
+
+    std::lock_guard guard(this->calloutSyncing.calloutMutex);
+
+    auto funcIt = this->calloutSyncing.functions.find(entry);
+    if (funcIt == this->calloutSyncing.functions.end())
+        return 0; // function is not on the list, nothing do do c:
+
+    this->calloutSyncing.functions.erase(funcIt->first);
+
+    return 0;
+}
+
+void SceNetAdhocMatchingContext::notifyHandler(EmuEnvState &emuenv, int event, SceNetInAddr *peer, int optLen, void *opt) {
+    if (!this->handler.entry)
+        return;
+
+    if (!this->handler.thread)
+        this->handler.thread = emuenv.kernel.create_thread(emuenv.mem, "adhocHandlerThread");
+
+    Ptr<SceNetInAddr> vPeer;
+    if (peer) {
+        vPeer = Ptr<SceNetInAddr>(alloc(emuenv.mem, sizeof(SceNetInAddr), "adhocHandlerPeer"));
+        memcpy(vPeer.get(emuenv.mem), peer, sizeof(*peer));
+    } else {
+        vPeer = Ptr<SceNetInAddr>(0);
+    }
+
+    Ptr<char> vOpt;
+    if (opt) {
+        vOpt = Ptr<char>(alloc(emuenv.mem, optLen, "adhocHandlerOpt"));
+        memcpy(vOpt.get(emuenv.mem), opt, optLen);
+    } else {
+        vOpt = Ptr<char>(0);
+    }
+
+    SceNetAdhocHandlerArguments handleArgs{
+        .id = (uint32_t)this->id,
+        .event = (uint32_t)event,
+        .peer = vPeer.address(),
+        .optlen = (uint32_t)optLen,
+        .opt = vOpt.address()
+    };
+
+    auto data = Ptr<SceNetAdhocHandlerArguments>(alloc(emuenv.mem, sizeof(handleArgs), "handleArgs"));
+    memcpy(data.get(emuenv.mem), &handleArgs, sizeof(handleArgs));
+
+    this->handler.thread->run_guest_function(this->handler.entry.address(), sizeof(SceNetAdhocHandlerArguments), data);
+
+    free(emuenv.mem, vPeer); // free peer
+    free(emuenv.mem, vOpt); // free opt
+    free(emuenv.mem, data); // free arguments
+};
+
+bool SceNetAdhocMatchingContext::getHelloOpt(int *oOptlen, void *oOpt) {
+    int optLen = this->totalHelloLength - sizeof(SceNetAdhocMatchingHelloStart);
+
+    if (oOpt != nullptr && 0 < optLen) {
+        // Whichever is less to not write more than app allocated for opt data
+        if (*oOptlen < optLen)
+            optLen = *oOptlen;
+
+        memcpy(oOpt, this->hello + sizeof(SceNetAdhocMatchingHelloStart), optLen);
+    }
+    *oOptlen = optLen;
+
+    return true;
+};
+
+bool SceNetAdhocMatchingContext::setHelloOpt(int optlen, void *opt) {
+    auto hi = new char[sizeof(SceNetAdhocMatchingHelloStart) + optlen + sizeof(SceNetAdhocMatchingHelloEnd)];
+    this->totalHelloLength = sizeof(SceNetAdhocMatchingHelloStart) + optlen + sizeof(SceNetAdhocMatchingHelloEnd);
+
+    if (this->hello != nullptr)
+        delete this->hello;
+    this->hello = hi;
+
+    ((SceNetAdhocMatchingHelloStart *)hi)->one = 1;
+    ((SceNetAdhocMatchingHelloStart *)hi)->packetType = SCE_NET_ADHOC_MATCHING_PACKET_TYPE_HELLO;
+
+    auto nRexmtInterval = htonl(this->rexmtInterval);
+    memcpy(&((SceNetAdhocMatchingHelloStart *)hi)->nRexmtInterval, &nRexmtInterval, sizeof(nRexmtInterval));
+
+    auto nHelloInterval = htonl(this->helloInterval);
+    memcpy(&((SceNetAdhocMatchingHelloStart *)hi)->nHelloInterval, &nHelloInterval, sizeof(nHelloInterval));
+
+    auto packetLength = htons(optlen + sizeof(nRexmtInterval) + sizeof(nHelloInterval));
+    memcpy(&((SceNetAdhocMatchingHelloStart *)hi)->nPacketLength, &packetLength, sizeof(packetLength));
+
+    memcpy(hi + sizeof(SceNetAdhocMatchingHelloStart), opt, optlen);
+
+    uint32_t NUMBAONE = 1;
+    memcpy(&((SceNetAdhocMatchingHelloEnd *)(hi + sizeof(SceNetAdhocMatchingHelloStart) + optlen))->unk1, &NUMBAONE, sizeof(NUMBAONE));
+    memset(&((SceNetAdhocMatchingHelloEnd *)(hi + sizeof(SceNetAdhocMatchingHelloStart) + optlen))->unk2, 0, 12);
+
+    return true;
+};
+
+bool SceNetAdhocMatchingContext::broadcastHello() {
+    sockaddr_in send_addr = {
+        .sin_family = AF_INET,
+        .sin_port = htons(this->port),
+    };
+#ifdef _WIN32
+    send_addr.sin_addr.S_un.S_addr = INADDR_BROADCAST;
+#else
+    send_addr.sin_addr.s_addr = INADDR_BROADCAST;
+#endif
+
+    auto sendResult = sendto(this->sendSocket, &this->hello, this->totalHelloLength, 0, (sockaddr *)&send_addr, sizeof(send_addr));
+
+    if (sendResult == EAGAIN)
+        sendResult = 0;
+
+    if (sendResult < 0)
+        return false;
+
+    LOG_CRITICAL("sent hello to broadcast :D");
+
+    return true;
+};
+
+SceNetAdhocMatchingTarget *SceNetAdhocMatchingContext::findTargetByAddr(uint32_t addr) {
+    SceNetAdhocMatchingTarget *item = this->targets;
+    if (item != nullptr) {
+        do {
+            if (item->addr.s_addr == addr)
+                return item;
+            item = item->next;
+        } while (item != nullptr);
+    }
+    return item;
+};
 
 SceNetAdhocMatchingTarget *SceNetAdhocMatchingContext::newTarget(uint32_t addr) {
     auto target = new SceNetAdhocMatchingTarget();

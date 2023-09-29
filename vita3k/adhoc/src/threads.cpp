@@ -18,6 +18,21 @@
 #include "module/module.h"
 
 #include <adhoc/state.h>
+#include <bits/chrono.h>
+#include <chrono>
+
+int sendHelloReqToPipe(void *arg) {
+    SceNetAdhocMatchingContext *ctx = (SceNetAdhocMatchingContext *)arg;
+    if ((ctx->helloPipeMsg.flags & 1) == 0) {
+        ctx->helloPipeMsg.type = SCE_NET_ADHOC_MATCHING_EVENT_HELLO_SEND;
+        ctx->helloPipeMsg.flags = ctx->helloPipeMsg.flags | 1;
+        ctx->helloPipeMsg.peer = nullptr;
+        write(ctx->pipesFd[1], &ctx->helloPipeMsg, sizeof(ctx->helloPipeMsg));
+        LOG_CRITICAL("sent hello event req");
+    }
+    LOG_CRITICAL("sent hello event req end");
+    return 0;
+}
 
 int adhocMatchingEventThread(EmuEnvState *emuenv, int id) {
     auto ctx = emuenv->adhoc.findMatchingContext(id);
@@ -27,6 +42,7 @@ int adhocMatchingEventThread(EmuEnvState *emuenv, int id) {
         int type = pipeMessage.type;
         auto peer = pipeMessage.peer;
         auto flags = pipeMessage.flags;
+        LOG_CRITICAL("received event:{}", type);
         switch (type) {
         case SCE_NET_ADHOC_MATCHING_EVENT_PACKET: { // Packet received
             peer->msg.flags = peer->msg.flags & 0xfffffffe;
@@ -46,13 +62,16 @@ int adhocMatchingEventThread(EmuEnvState *emuenv, int id) {
             break;
         }
         case SCE_NET_ADHOC_MATCHING_EVENT_HELLO_SEND: { // broadcast hello message to network
-            // TODO: flags
+            ctx->helloPipeMsg.flags = ctx->helloPipeMsg.flags & 0xfffffffe;
             int num = ctx->countTargetsWithStatusOrBetter(3);
             // also count ourselves
             if (num + 1 < ctx->maxnum)
                 ctx->broadcastHello();
 
-            // TODO: run the interval thingie here
+            if (ctx->searchTimedFunc(sendHelloReqToPipe)) {
+                ctx->delTimedFunc(sendHelloReqToPipe); // not run it, we are gonna reschedule it
+            };
+            ctx->addTimedFunc(sendHelloReqToPipe, ctx, ctx->helloInterval);
             break;
         }
         case SCE_NET_ADHOC_MATCHING_EVENT_UNK5: {
@@ -117,6 +136,41 @@ int adhocMatchingInputThread(EmuEnvState *emuenv, int id) {
             }
         }
     } while (true);
+
+    return 0;
+};
+
+int adhocMatchingCalloutThread(EmuEnvState *emuenv, int id) {
+    auto ctx = emuenv->adhoc.findMatchingContext(id);
+
+    do {
+        ctx->calloutSyncing.calloutMutex.lock();
+
+        auto &list = ctx->calloutSyncing.functions;
+        if (list.empty()) {
+            LOG_CRITICAL("timed funcs is empty, waiting 100us");
+            usleep(100); // sleep for 100us to wait for the list to populate, mainly to not waste cpu
+        }
+        uint64_t now = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+        for (auto &func : list) {
+            if (func.second.execAt < now)
+                continue;
+            ctx->calloutSyncing.calloutMutex.unlock();
+            LOG_CRITICAL("running timed func");
+            (func.first)(func.second.args);
+            // running callout func
+            func.second.ran = true;
+            ctx->calloutSyncing.calloutMutex.lock();
+        };
+
+        // delete functions that ran
+        for (auto &func : list) {
+            if (func.second.ran)
+                list.erase(func.first);
+        };
+
+        ctx->calloutSyncing.calloutMutex.lock();
+    } while (ctx->calloutSyncing.calloutShouldExit == false);
 
     return 0;
 };
