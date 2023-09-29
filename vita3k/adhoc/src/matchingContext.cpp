@@ -179,7 +179,6 @@ int SceNetAdhocMatchingContext::addTimedFunc(int (*entry)(void *), void *arg, ui
     SceNetAdhocMatchingCalloutFunction func = {
         .execAt = execAt,
         .args = arg,
-        .ran = false
     };
 
     this->calloutSyncing.functions.insert({ entry, func });

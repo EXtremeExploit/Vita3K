@@ -122,7 +122,7 @@ EXPORT(int, sceNetAdhocMatchingCreate, int mode, int maxnum, SceUShort16 port, i
     ctx->initCount = initCount;
     ctx->rexmtInterval = rexmtInterval;
 
-    ctx->helloFuncInQueue = false;
+    ctx->shouldHelloReqBeProcessed = false;
     ctx->targets = nullptr;
 
     SceNetAdhocMatchingHandler handler{

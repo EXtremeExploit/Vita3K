@@ -24,14 +24,12 @@
 
 int sendHelloReqToPipe(void *arg) {
     SceNetAdhocMatchingContext *ctx = (SceNetAdhocMatchingContext *)arg;
-    if ((ctx->helloPipeMsg.flags & 1) == 0) {
+    if ((ctx->helloPipeMsg.flags & 1U) == 0) {
         ctx->helloPipeMsg.type = SCE_NET_ADHOC_MATCHING_EVENT_HELLO_SEND;
         ctx->helloPipeMsg.flags = ctx->helloPipeMsg.flags | 1;
         ctx->helloPipeMsg.peer = nullptr;
         write(ctx->pipesFd[1], &ctx->helloPipeMsg, sizeof(ctx->helloPipeMsg));
-        LOG_CRITICAL("sent hello event req");
     }
-    LOG_CRITICAL("sent hello event req end");
     return 0;
 }
 
@@ -40,14 +38,14 @@ int adhocMatchingEventThread(EmuEnvState *emuenv, int id) {
 
     SceNetAdhocMatchingPipeMessage pipeMessage;
     while (read(ctx->pipesFd[0], &pipeMessage, sizeof(pipeMessage)) >= 0) {
-        ctx->calloutSyncing.calloutMutex.lock();
+        emuenv->adhoc.mutex.lock();
         int type = pipeMessage.type;
         auto peer = pipeMessage.peer;
-        auto flags = pipeMessage.flags;
-        LOG_CRITICAL("received event:{}", type);
+        pipeMessage.flags &= ~1U; // get rid of last bit
+
         switch (type) {
         case SCE_NET_ADHOC_MATCHING_EVENT_PACKET: { // Packet received
-            peer->msg.flags = peer->msg.flags & 0xfffffffe;
+            peer->msg.flags &= ~1U;
             ctx->processPacketFromPeer(peer);
             if (peer->rawPacket)
                 delete peer->rawPacket;
@@ -64,7 +62,6 @@ int adhocMatchingEventThread(EmuEnvState *emuenv, int id) {
             break;
         }
         case SCE_NET_ADHOC_MATCHING_EVENT_HELLO_SEND: { // broadcast hello message to network
-            ctx->helloPipeMsg.flags = ctx->helloPipeMsg.flags & 0xfffffffe;
             int num = ctx->countTargetsWithStatusOrBetter(3);
             // also count ourselves
             if (num + 1 < ctx->maxnum)
@@ -74,6 +71,7 @@ int adhocMatchingEventThread(EmuEnvState *emuenv, int id) {
                 ctx->delTimedFunc(sendHelloReqToPipe); // not run it, we are gonna reschedule it
             };
             ctx->addTimedFunc(sendHelloReqToPipe, ctx, ctx->helloInterval);
+            ctx->helloPipeMsg.flags &= ~1U;
             break;
         }
         case SCE_NET_ADHOC_MATCHING_EVENT_UNK5: {
@@ -81,7 +79,7 @@ int adhocMatchingEventThread(EmuEnvState *emuenv, int id) {
             break;
         }
         }
-        ctx->calloutSyncing.calloutMutex.unlock();
+        emuenv->adhoc.mutex.unlock();
     }
 
     return 0;
@@ -113,6 +111,7 @@ int adhocMatchingInputThread(EmuEnvState *emuenv, int id) {
             SceUShort16 packetLenght = ntohs(nPacketLength); // ACTUALLY the packet length fr this time
         } while (res < packetLength + 4);
         // We received the whole packet, we can now commence the parsing and the fun
+        emuenv->adhoc.mutex.lock();
         auto foundTarget = ctx->findTargetByAddr(fromAddr->sin_addr.s_addr);
         if (foundTarget == nullptr) {
             uint8_t targetMode = *(ctx->rxbuf + 1);
@@ -138,6 +137,7 @@ int adhocMatchingInputThread(EmuEnvState *emuenv, int id) {
                 write(ctx->pipesFd[1], &foundTarget->msg, sizeof(foundTarget->msg));
             }
         }
+        emuenv->adhoc.mutex.unlock();
     } while (true);
 
     return 0;
@@ -150,29 +150,18 @@ int adhocMatchingCalloutThread(EmuEnvState *emuenv, int id) {
         ctx->calloutSyncing.calloutMutex.lock();
 
         auto &list = ctx->calloutSyncing.functions;
-        if (list.empty()) {
-            LOG_CRITICAL("timed funcs is empty, waiting 10ms");
-            usleep(10000); // sleep for 100us to wait for the list to populate, mainly to not waste cpu
-        }
         uint64_t now = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
         for (auto &func : list) {
-            if (func.second.execAt < now)
+            if (func.second.execAt > now)
                 continue;
-            LOG_CRITICAL("running timed func");
+
+            // LOG_CRITICAL("running timed func");
+            ctx->calloutSyncing.calloutMutex.unlock();
             (func.first)(func.second.args);
+            ctx->calloutSyncing.calloutMutex.lock();
             // running callout func
-            func.second.ran = true;
         };
-
-        // delete functions that ran
-
-        for (auto func = list.cbegin(); func != list.cend();) {
-            if (func->second.ran) {
-                list.erase(func++);
-            } else {
-                ++func;
-            }
-        }
+        // TODO: should something be done here?
         ctx->calloutSyncing.calloutMutex.unlock();
     } while (ctx->calloutSyncing.calloutShouldExit == false);
     LOG_CRITICAL("calloutShouldExit:{}", ctx->calloutSyncing.calloutShouldExit);

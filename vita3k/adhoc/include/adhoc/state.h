@@ -179,7 +179,6 @@ enum SceNetAdhocMatchingContextStatus {
 struct SceNetAdhocMatchingCalloutFunction {
     uint64_t execAt;
     void *args;
-    bool ran = false;
 };
 
 struct SceNetAdhocMatchingCalloutSyncing {
@@ -217,7 +216,7 @@ struct SceNetAdhocMatchingContext {
 
     unsigned int totalHelloLength;
     char *hello;
-    bool helloFuncInQueue;
+    bool shouldHelloReqBeProcessed;
 
     uint32_t ownAddress;
 
