@@ -184,7 +184,7 @@ struct SceNetAdhocMatchingCalloutFunction {
 
 struct SceNetAdhocMatchingCalloutSyncing {
     std::thread calloutThread;
-    std::unique_lock<std::mutex> calloutMutex;
+    std::mutex calloutMutex;
     std::condition_variable condvar;
     bool calloutThreadIsRunning;
     bool calloutShouldExit;

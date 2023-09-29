@@ -20,6 +20,7 @@
 #include <adhoc/state.h>
 #include <bits/chrono.h>
 #include <chrono>
+#include <mutex>
 
 int sendHelloReqToPipe(void *arg) {
     SceNetAdhocMatchingContext *ctx = (SceNetAdhocMatchingContext *)arg;
@@ -39,6 +40,7 @@ int adhocMatchingEventThread(EmuEnvState *emuenv, int id) {
 
     SceNetAdhocMatchingPipeMessage pipeMessage;
     while (read(ctx->pipesFd[0], &pipeMessage, sizeof(pipeMessage)) >= 0) {
+        ctx->calloutSyncing.calloutMutex.lock();
         int type = pipeMessage.type;
         auto peer = pipeMessage.peer;
         auto flags = pipeMessage.flags;
@@ -79,6 +81,7 @@ int adhocMatchingEventThread(EmuEnvState *emuenv, int id) {
             break;
         }
         }
+        ctx->calloutSyncing.calloutMutex.unlock();
     }
 
     return 0;
@@ -148,29 +151,31 @@ int adhocMatchingCalloutThread(EmuEnvState *emuenv, int id) {
 
         auto &list = ctx->calloutSyncing.functions;
         if (list.empty()) {
-            LOG_CRITICAL("timed funcs is empty, waiting 100us");
-            usleep(100); // sleep for 100us to wait for the list to populate, mainly to not waste cpu
+            LOG_CRITICAL("timed funcs is empty, waiting 10ms");
+            usleep(10000); // sleep for 100us to wait for the list to populate, mainly to not waste cpu
         }
         uint64_t now = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
         for (auto &func : list) {
             if (func.second.execAt < now)
                 continue;
-            ctx->calloutSyncing.calloutMutex.unlock();
             LOG_CRITICAL("running timed func");
             (func.first)(func.second.args);
             // running callout func
             func.second.ran = true;
-            ctx->calloutSyncing.calloutMutex.lock();
         };
 
         // delete functions that ran
-        for (auto &func : list) {
-            if (func.second.ran)
-                list.erase(func.first);
-        };
 
-        ctx->calloutSyncing.calloutMutex.lock();
+        for (auto func = list.cbegin(); func != list.cend();) {
+            if (func->second.ran) {
+                list.erase(func++);
+            } else {
+                ++func;
+            }
+        }
+        ctx->calloutSyncing.calloutMutex.unlock();
     } while (ctx->calloutSyncing.calloutShouldExit == false);
+    LOG_CRITICAL("calloutShouldExit:{}", ctx->calloutSyncing.calloutShouldExit);
 
     return 0;
 };
