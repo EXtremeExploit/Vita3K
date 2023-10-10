@@ -15,8 +15,11 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+#include "net/types.h"
 #include <cstring>
 #include <net/socket.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 
 // NOTE: This should be SCE_NET_##errname but it causes vitaQuake to softlock in online games
 #ifdef WIN32
@@ -127,7 +130,11 @@ static void convertSceSockaddrToPosix(const SceNetSockaddr *src, sockaddr *dst) 
     const SceNetSockaddrIn *src_in = (const SceNetSockaddrIn *)src;
     sockaddr_in *dst_in = (sockaddr_in *)dst;
     dst_in->sin_family = src_in->sin_family;
-    dst_in->sin_port = src_in->sin_port;
+    // UDP sockets use the vport field
+    if (type == SOCK_DGRAM)
+        dst_in->sin_port = src_in->sin_vport;
+    else
+        dst_in->sin_port = src_in->sin_port;
     memcpy(&dst_in->sin_addr, &src_in->sin_addr, 4);
 }
 
@@ -138,7 +145,18 @@ static void convertPosixSockaddrToSce(sockaddr *src, SceNetSockaddr *dst) {
     SceNetSockaddrIn *dst_in = (SceNetSockaddrIn *)dst;
     sockaddr_in *src_in = (sockaddr_in *)src;
     dst_in->sin_family = static_cast<unsigned char>(src_in->sin_family);
-    dst_in->sin_port = src_in->sin_port;
+    // TODO: even if we are using the other port field, we should set the other one to the "default". It may depend on context tho
+    /*
+        For example:
+        Adhoc uses TCP 3658; UDP ???
+    */
+    if (type == SOCK_DGRAM) {
+        dst_in->sin_vport = src_in->sin_port;
+        dst_in->sin_port = 0;
+    } else {
+        dst_in->sin_port = src_in->sin_port;
+        dst_in->sin_vport = 0;
+    }
     memcpy(&dst_in->sin_addr, &src_in->sin_addr, 4);
 }
 
@@ -166,7 +184,7 @@ int PosixSocket::get_socket_address(SceNetSockaddr *name, unsigned int *namelen)
     }
     int res = getsockname(sock, &addr, (socklen_t *)namelen);
     if (res >= 0) {
-        convertPosixSockaddrToSce(&addr, name);
+        convertPosixSockaddrToSce(&addr, name, sockType);
         *namelen = sizeof(SceNetSockaddrIn);
     }
     return res;
@@ -347,7 +365,7 @@ int PosixSocket::recv_packet(void *buf, unsigned int len, int flags, SceNetSocka
     if (from != nullptr) {
         sockaddr addr;
         int res = recvfrom(sock, (char *)buf, len, flags, &addr, (socklen_t *)fromlen);
-        convertPosixSockaddrToSce(&addr, from);
+        convertPosixSockaddrToSce(&addr, from, sockType);
         *fromlen = sizeof(SceNetSockaddrIn);
 
         return translate_return_value(res);
