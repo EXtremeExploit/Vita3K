@@ -16,6 +16,8 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 #include "net/types.h"
+#include "util/log.h"
+#include <arpa/inet.h>
 #include <cstring>
 #include <net/socket.h>
 #include <netinet/in.h>
@@ -365,6 +367,11 @@ int PosixSocket::recv_packet(void *buf, unsigned int len, int flags, SceNetSocka
     if (from != nullptr) {
         sockaddr addr;
         int res = recvfrom(sock, (char *)buf, len, flags, &addr, (socklen_t *)fromlen);
+        if (res > 0) {
+            char addrStr[17] = {};
+            inet_ntop(AF_INET, &((sockaddr_in *)&addr)->sin_addr, addrStr, sizeof(addr));
+            LOG_TRACE("Received packet from {} which is {} bytes long", addrStr, res);
+        }
         convertPosixSockaddrToSce(&addr, from, sockType);
         *fromlen = sizeof(SceNetSockaddrIn);
 
