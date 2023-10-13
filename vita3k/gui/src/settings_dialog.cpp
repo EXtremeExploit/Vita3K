@@ -17,6 +17,7 @@
 
 #include "imgui.h"
 #include "private.h"
+#include "util/net_utils.h"
 
 #include <app/functions.h>
 #include <audio/state.h>
@@ -1130,6 +1131,36 @@ void draw_settings_dialog(GuiState &gui, EmuEnvState &emuenv) {
         ImGui::Checkbox(lang.network["psn_signed_in"].c_str(), &config.psn_signed_in);
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("%s", lang.network["psn_signed_in_description"].c_str());
+
+        // Adhoc
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+        const auto adhoc = ImGui::CalcTextSize("Adhoc").x;
+        ImGui::SetCursorPosX((ImGui::GetWindowWidth() / 2.f) - (adhoc / 2.f));
+        ImGui::TextColored(GUI_COLOR_TEXT_MENUBAR, "Adhoc");
+        ImGui::Spacing();
+
+        std::vector<const char *> addrsSelect;
+        std::vector<std::pair<std::string, std::string>> addrs;
+        net_utils::getAllAssignedAddrs(addrs);
+
+        std::vector<std::string*> holder;
+
+        for (auto &addr : addrs) {
+            const auto a = new std::string(addr.first + " (" + addr.second + ")");
+            holder.emplace_back(a);
+            addrsSelect.emplace_back(a->c_str());
+        }
+
+        ImGui::Combo("Adhoc Address", &emuenv.cfg.adhoc_addr, addrsSelect.data(), static_cast<int>(addrs.size()));
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Select which Address to use in adhoc.");
+
+        for (auto &h : holder) {
+            delete h;
+        }
+        holder.clear();
 
         // HTTP
         ImGui::Spacing();

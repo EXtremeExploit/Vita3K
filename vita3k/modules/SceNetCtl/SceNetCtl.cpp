@@ -15,6 +15,7 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+#include "util/net_utils.h"
 #include <module/module.h>
 
 #include <kernel/state.h>
@@ -350,14 +351,18 @@ EXPORT(int, sceNetCtlAdhocGetInAddr, SceNetInAddr *inaddr) {
         return RET_ERROR(SCE_NET_CTL_ERROR_INVALID_ADDR);
     }
 
-    SceNetCtlInfo info;
-    CALL_EXPORT(sceNetCtlInetGetInfo, SCE_NETCTL_INFO_GET_IP_ADDRESS, &info);
-    if(std::string_view(info.ip_address).starts_with("127."))
-        return RET_ERROR(-1); // TODO
-        
+    std::vector<std::pair<std::string, std::string>> addrs;
+    net_utils::getAllAssignedAddrs(addrs);
 
+    if (addrs.size() == 1) { // We only have loopback :C
+        LOG_WARN_ONCE("loopback address was the only found addr");
+    }
 
-    inet_pton(AF_INET, info.ip_address, &inaddr->s_addr);
+    const auto addr = addrs[emuenv.cfg.adhoc_addr].first.c_str();
+
+    LOG_CRITICAL("Adhoc addr is {}", addr);
+    inet_pton(AF_INET, addr, &inaddr->s_addr);
+
     return 0;
 }
 

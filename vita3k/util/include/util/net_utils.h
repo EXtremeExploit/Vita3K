@@ -58,4 +58,6 @@ bool parseResponse(const std::string &response, SceRequestResponse &reqres);
 
 bool socketSetBlocking(int sockfd, bool blocking);
 
+// First key in pair is address in string form, the second is interface name
+void getAllAssignedAddrs(std::vector<std::pair<std::string,std::string>> &outAddrs);
 } // namespace net_utils
