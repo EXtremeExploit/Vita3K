@@ -62,7 +62,7 @@ void adhocAuthThread(EmuEnvState *emuenv) {
             info.addr.s_addr = 0; // Set this 0, receiving end can fill it
 
             np::SceNpId npId;
-            std::strncpy(npId.handle.data, emuenv->io.user_name.c_str(), SCE_SYSTEM_PARAM_USERNAME_MAXSIZE - 1);
+            std::strncpy(npId.handle.data, emuenv->io.user_name.c_str(), SCE_SYSTEM_PARAM_USERNAME_MAXSIZE);
             npId.handle.term = '\0';
             std::fill(npId.handle.dummy, npId.handle.dummy + 3, 0);
 
