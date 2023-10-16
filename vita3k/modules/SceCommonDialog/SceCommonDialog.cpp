@@ -518,11 +518,10 @@ EXPORT(int, sceNetCheckDialogInit, SceNetCheckDialogParam *param) {
         emuenv.netctl.inAdhocMode = true;
 
         emuenv.netctl.adhocAuthThread = std::thread(adhocAuthThread, &emuenv);
-
-    } else {
-        emuenv.common_dialog.type = NETCHECK_DIALOG;
-        emuenv.common_dialog.status = SCE_COMMON_DIALOG_STATUS_FINISHED;
     }
+    emuenv.common_dialog.type = NETCHECK_DIALOG;
+    emuenv.common_dialog.status = SCE_COMMON_DIALOG_STATUS_FINISHED;
+
     return UNIMPLEMENTED();
 }
 
