@@ -18,6 +18,7 @@
 #include "SceNet.h"
 
 #include <cstdio>
+#include <iterator>
 #include <kernel/state.h>
 #include <net/state.h>
 #include <net/types.h>
@@ -447,7 +448,43 @@ EXPORT(int, sceNetRecvfrom, int sid, void *buf, unsigned int len, int flags, Sce
     if (!sock) {
         return RET_ERROR(SCE_NET_ERROR_EBADF);
     }
-    return sock->recv_packet(buf, len, flags, from, fromlen);
+
+    const int ret = sock->recv_packet(buf, len, flags, from, fromlen);
+    if (emuenv.netctl.inAdhocMode) {
+        auto peerIt = emuenv.netctl.adhocPeers.begin();
+        for (; peerIt != emuenv.netctl.adhocPeers.end(); peerIt++) {
+            if (peerIt->addr.s_addr == ((SceNetSockaddrIn *)&from)->sin_addr.s_addr) {
+                break;
+            }
+        }
+
+        if (peerIt != emuenv.netctl.adhocPeers.end()) {
+            peerIt->lastRecv = rtc_get_ticks(emuenv.kernel.base_tick.tick) - emuenv.kernel.start_tick;
+            return ret;
+        }
+
+        int reqSocket = socket(AF_INET, SOCK_DGRAM, 0);
+
+        sockaddr_in dst_in;
+        dst_in.sin_family = AF_INET;
+        dst_in.sin_port = htons(33333);
+        memcpy(&dst_in.sin_addr, &((SceNetSockaddrIn *)&from)->sin_addr, 4);
+
+        const char msg[28] = "Hello, tell me about you c:";
+        sendto(reqSocket, msg, sizeof(msg), 0, (sockaddr *)&dst_in, sizeof(dst_in));
+
+        char buf[1024];
+        int bytes = 0;
+
+        while (bytes != sizeof(SceNetCtlAdhocPeerInfo))
+            bytes += recv(reqSocket, buf, sizeof(buf), 0);
+
+        SceNetCtlAdhocPeerInfo peerInfo;
+        memcpy(&peerInfo, buf, sizeof(peerInfo));
+
+        peerInfo.lastRecv = rtc_get_ticks(emuenv.kernel.base_tick.tick) - emuenv.kernel.start_tick;
+    }
+    return ret;
 }
 
 EXPORT(int, sceNetRecvmsg) {

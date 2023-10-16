@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "util/types.h"
 #include <emuenv/app_util.h>
 #include <mem/ptr.h>
 
@@ -198,6 +199,17 @@ enum SceMsgDialogButtonType {
     SCE_MSG_DIALOG_BUTTON_TYPE_3BUTTONS = 5
 };
 
+enum SceNetCheckDialogMode {
+    SCE_NETCHECK_DIALOG_MODE_INVALID = 0,
+    SCE_NETCHECK_DIALOG_MODE_ADHOC_CONN = 1,
+    SCE_NETCHECK_DIALOG_MODE_PSN = 2,
+    SCE_NETCHECK_DIALOG_MODE_PSN_ONLINE = 3,
+    SCE_NETCHECK_DIALOG_MODE_PS3_CONNECT = 4,
+    SCE_NETCHECK_DIALOG_MODE_PSP_ADHOC_CONN = 5,
+    SCE_NETCHECK_DIALOG_MODE_PSP_ADHOC_CREATE = 6,
+    SCE_NETCHECK_DIALOG_MODE_PSP_ADHOC_JOIN = 7
+};
+
 typedef enum SceMsgDialogMode {
     SCE_MSG_DIALOG_MODE_INVALID = 0,
     SCE_MSG_DIALOG_MODE_USER_MSG = 1,
@@ -255,6 +267,38 @@ struct SceImeDialogResult {
     SceInt32 result;
     SceInt32 button;
     SceChar8 reserved[28];
+};
+
+struct SceNpCommunicationId {
+    char data[9];
+    char term;
+    SceUChar8 num;
+    char dummy;
+};
+
+struct SceNetAdhocctlGroupName {
+    SceChar8 data[8];
+};
+
+struct SceNetCheckDialogAgeRestriction {
+    char countryCode[2];
+    SceInt8 age;
+    SceInt8 padding;
+};
+
+struct SceNetCheckDialogParam {
+    SceUInt32 sdkVersion;
+    SceCommonDialogParam commonParam;
+    SceInt32 mode;
+    SceNpCommunicationId npCommunicationId;
+    void *ps3ConnectParam;
+    SceNetAdhocctlGroupName *groupName;
+    SceUInt32 timeoutUs;
+    SceInt8 defaultAgeRestriction;
+    SceInt8 padding[3];
+    SceInt32 ageRestrictionCount;
+    SceNetCheckDialogAgeRestriction *ageRestriction;
+    SceUInt8 reserved[104];
 };
 
 struct SceNpTrophySetupDialogParam {

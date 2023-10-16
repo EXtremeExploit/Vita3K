@@ -18,6 +18,7 @@
 #include "util/net_utils.h"
 #include <module/module.h>
 
+#include <adhoc/state.h>
 #include <kernel/state.h>
 #include <net/state.h>
 #include <net/types.h>
@@ -39,13 +40,18 @@
 #include <util/tracy.h>
 TRACY_MODULE_NAME(SceNetCtl);
 
-struct SceNetCtlAdhocPeerInfo;
-
 EXPORT(int, sceNetCtlAdhocDisconnect) {
     TRACY_FUNC(sceNetCtlAdhocDisconnect);
     if (!emuenv.netctl.inited) {
         return RET_ERROR(SCE_NET_CTL_ERROR_NOT_INITIALIZED);
     }
+
+    emuenv.netctl.adhocShouldStop = true;
+
+    if (emuenv.netctl.adhocAuthThread.joinable())
+        emuenv.netctl.adhocAuthThread.join();
+
+    emuenv.netctl.inAdhocMode = false;
 
     return UNIMPLEMENTED();
 }
@@ -55,6 +61,11 @@ EXPORT(int, sceNetCtlAdhocGetPeerList, SceSize *peerInfoNum, SceNetCtlAdhocPeerI
     if (!peerInfoNum) {
         return RET_ERROR(SCE_NET_CTL_ERROR_INVALID_ADDR);
     }
+
+    if (peerInfo)
+        memcpy(peerInfo, emuenv.netctl.adhocPeers.data(), emuenv.netctl.adhocPeers.size() * sizeof(*peerInfo));
+
+    *peerInfoNum = emuenv.netctl.adhocPeers.size();
 
     return UNIMPLEMENTED();
 }
@@ -360,7 +371,6 @@ EXPORT(int, sceNetCtlAdhocGetInAddr, SceNetInAddr *inaddr) {
 
     const auto addr = addrs[emuenv.cfg.adhoc_addr].first.c_str();
 
-    LOG_CRITICAL("Adhoc addr is {}", addr);
     inet_pton(AF_INET, addr, &inaddr->s_addr);
 
     return 0;

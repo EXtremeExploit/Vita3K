@@ -17,10 +17,13 @@
 
 #pragma once
 
+#include <emuenv/app_util.h>
 #include <net/epoll.h>
 #include <net/socket.h>
 #include <net/types.h>
+#include <np/common.h>
 #include <rtc/rtc.h>
+#include <thread>
 #include <util/types.h>
 
 #include <array>
@@ -140,6 +143,16 @@ struct SceNetCtlIfStat {
     SceUInt32 reserved[8];
 };
 
+struct SceNetCtlAdhocPeerInfo {
+    SceNetInAddr addr;
+    np::SceNpId npId;
+    SceUInt64 lastRecv;
+    int appVer;
+    SceBool isValidNpId;
+    char username[SCE_SYSTEM_PARAM_USERNAME_MAXSIZE];
+    uint8_t padding[7];
+};
+
 struct NetState {
     bool inited = false;
     int next_id = 0;
@@ -154,5 +167,9 @@ struct NetCtlState {
     std::array<SceNetCtlCallback, 8> adhocCallbacks;
     std::array<SceNetCtlCallback, 8> callbacks;
     bool inited = false;
+    bool inAdhocMode = false;
+    bool adhocShouldStop = false;
+    std::vector<SceNetCtlAdhocPeerInfo> adhocPeers;
+    std::thread adhocAuthThread;
     std::mutex mutex;
 };

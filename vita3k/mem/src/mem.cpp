@@ -234,7 +234,7 @@ void unprotect_inner(MemState &state, Address addr, uint32_t size) {
     LOG_CRITICAL_IF(!ret, "VirtualAlloc failed: {}", get_error_msg());
 #else
     const int ret = mprotect(&addr_ptr[addr], size, PROT_READ | PROT_WRITE);
-    LOG_CRITICAL_IF(ret == -1, "mprotect failed: {}", get_error_msg());
+    // LOG_CRITICAL_IF(ret == -1, "mprotect failed: {}", get_error_msg());
 #endif
 }
 
