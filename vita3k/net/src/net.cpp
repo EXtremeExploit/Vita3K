@@ -72,7 +72,6 @@ void adhocAuthThread(EmuEnvState *emuenv) {
 
             info.npId = npId;
 
-            // rtc_get_ticks(emuenv.kernel.base_tick.tick) - emuenv.kernel.start_tick
             info.lastRecv = 0; // Doesnt matter, this is the server side
             info.appVer = 100; // TODO
             info.isValidNpId = true; // stub

@@ -483,6 +483,10 @@ EXPORT(int, sceNetRecvfrom, int sid, void *buf, unsigned int len, int flags, Sce
         memcpy(&peerInfo, buf, sizeof(peerInfo));
 
         peerInfo.lastRecv = rtc_get_ticks(emuenv.kernel.base_tick.tick) - emuenv.kernel.start_tick;
+        peerInfo.addr = {
+            .s_addr = ((SceNetSockaddrIn *)&from)->sin_addr.s_addr
+        };
+        emuenv.netctl.adhocPeers.push_back(peerInfo);
     }
     return ret;
 }
