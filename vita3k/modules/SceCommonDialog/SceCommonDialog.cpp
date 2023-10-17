@@ -516,6 +516,7 @@ EXPORT(int, sceNetCheckDialogInit, SceNetCheckDialogParam *param) {
     if (param->mode == SCE_NETCHECK_DIALOG_MODE_ADHOC_CONN) {
         // This is an INSANE stub to keep track of the adresses in adhoc mode needed by netctl to know who is in the network
         emuenv.netctl.inAdhocMode = true;
+        emuenv.netctl.adhocShouldStop = false;
 
         emuenv.netctl.adhocAuthThread = std::thread(adhocAuthThread, &emuenv);
     }

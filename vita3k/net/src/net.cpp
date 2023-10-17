@@ -15,14 +15,14 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-#include "emuenv/app_util.h"
-#include "util/log.h"
+#include <emuenv/app_util.h>
 #include <emuenv/state.h>
 #include <io/state.h>
 #include <net/functions.h>
 #include <net/state.h>
 #include <np/common.h>
 #include <sys/socket.h>
+#include <util/log.h>
 
 #include <cstring>
 #include <unistd.h>
@@ -55,9 +55,11 @@ void adhocAuthThread(EmuEnvState *emuenv) {
 
         do {
             bytes = recvfrom(recvSocket, buf, sizeof(buf), 0, &addr, &addrLen);
+            LOG_TRACE("recvfrom auth ret = {}", bytes);
         } while (bytes < 1);
 
         if (std::string_view(buf) == "Hello, tell me about you c:") {
+            LOG_CRITICAL("Received about request");
             SceNetCtlAdhocPeerInfo info;
             info.addr.s_addr = 0; // Set this 0, receiving end can fill it
 

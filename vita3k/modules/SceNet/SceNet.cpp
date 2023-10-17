@@ -16,6 +16,7 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 #include "SceNet.h"
+#include "util/log.h"
 
 #include <cstdio>
 #include <iterator>
@@ -458,12 +459,19 @@ EXPORT(int, sceNetRecvfrom, int sid, void *buf, unsigned int len, int flags, Sce
             }
         }
 
+        // If the peer is already in the list, update the last recv time
         if (peerIt != emuenv.netctl.adhocPeers.end()) {
             peerIt->lastRecv = rtc_get_ticks(emuenv.kernel.base_tick.tick) - emuenv.kernel.start_tick;
             return ret;
         }
 
         int reqSocket = socket(AF_INET, SOCK_DGRAM, 0);
+
+        sockaddr_in bindAddr = {};
+        bindAddr.sin_port = htons(33334);
+        if (bind(reqSocket, (sockaddr *)&bindAddr, sizeof(bindAddr)) < 0) {
+            LOG_CRITICAL("Could not bind adhoc recv socket to port 33334. Adhoc will not work");
+        }
 
         sockaddr_in dst_in;
         dst_in.sin_family = AF_INET;
@@ -472,15 +480,18 @@ EXPORT(int, sceNetRecvfrom, int sid, void *buf, unsigned int len, int flags, Sce
 
         const char msg[28] = "Hello, tell me about you c:";
         sendto(reqSocket, msg, sizeof(msg), 0, (sockaddr *)&dst_in, sizeof(dst_in));
+        LOG_CRITICAL("Sent about request");
 
         char buf[1024];
         int bytes = 0;
-
-        while (bytes != sizeof(SceNetCtlAdhocPeerInfo))
+        while (bytes != sizeof(SceNetCtlAdhocPeerInfo)) {
             bytes += recv(reqSocket, buf, sizeof(buf), 0);
+            LOG_CRITICAL("adhoc auth: Received {} bytes so far", bytes);
+        }
 
         SceNetCtlAdhocPeerInfo peerInfo;
         memcpy(&peerInfo, buf, sizeof(peerInfo));
+        LOG_CRITICAL("Sent about request reply, username is {}", peerInfo.username);
 
         peerInfo.lastRecv = rtc_get_ticks(emuenv.kernel.base_tick.tick) - emuenv.kernel.start_tick;
         peerInfo.addr = {
