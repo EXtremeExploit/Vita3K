@@ -1,0 +1,25 @@
+name: Feature Request
+description: aaaaa
+title: '[Feature Request]: '
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: What plaform does this relate to?
+      description: Windows/Android/Linux/Mac/etc
+      options:
+        - Windows
+        - Mac
+        - Linux
+        - Android
+        - N/A
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: cheese
+  - type: markdown
+    attributes:
+      value: >-
+        This template was generated with [Issue Forms
+        Creator](https://issue-forms-creator.netlify.app)
