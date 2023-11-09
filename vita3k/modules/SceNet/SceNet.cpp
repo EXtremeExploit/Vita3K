@@ -18,6 +18,7 @@
 #include "SceNet.h"
 #include "util/log.h"
 
+#include <arpa/inet.h>
 #include <cstdio>
 #include <iterator>
 #include <kernel/state.h>
@@ -461,9 +462,12 @@ EXPORT(int, sceNetRecvfrom, int sid, void *buf, unsigned int len, int flags, Sce
 
         // If the peer is already in the list, update the last recv time
         if (peerIt != emuenv.netctl.adhocPeers.end()) {
+            LOG_CRITICAL("IP is in adhocPeers");
             peerIt->lastRecv = rtc_get_ticks(emuenv.kernel.base_tick.tick) - emuenv.kernel.start_tick;
             return ret;
         }
+
+        LOG_CRITICAL("IP not in adhocPeers");
 
         int reqSocket = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -476,11 +480,16 @@ EXPORT(int, sceNetRecvfrom, int sid, void *buf, unsigned int len, int flags, Sce
         sockaddr_in dst_in;
         dst_in.sin_family = AF_INET;
         dst_in.sin_port = htons(33333);
-        memcpy(&dst_in.sin_addr, &((SceNetSockaddrIn *)&from)->sin_addr, 4);
+
+        SceNetSockaddrIn *fromIn = (SceNetSockaddrIn *)from;
+
+        memcpy(&dst_in.sin_addr, &fromIn->sin_addr, 4);
+
+        char addrStr[17];
+        inet_ntop(AF_INET, &dst_in.sin_addr, addrStr, sizeof(addrStr));
 
         const char msg[28] = "Hello, tell me about you c:";
         sendto(reqSocket, msg, sizeof(msg), 0, (sockaddr *)&dst_in, sizeof(dst_in));
-        LOG_CRITICAL("Sent about request");
 
         char buf[1024];
         int bytes = 0;
@@ -498,6 +507,8 @@ EXPORT(int, sceNetRecvfrom, int sid, void *buf, unsigned int len, int flags, Sce
             .s_addr = ((SceNetSockaddrIn *)&from)->sin_addr.s_addr
         };
         emuenv.netctl.adhocPeers.push_back(peerInfo);
+
+        close(reqSocket);
     }
     return ret;
 }

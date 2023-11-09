@@ -15,6 +15,7 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+#include "util/log.h"
 #include <util/net_utils.h>
 
 #include <curl/curl.h>
@@ -22,8 +23,8 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #else
-#include <fcntl.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -498,11 +499,17 @@ void getAllAssignedAddrs(std::vector<std::pair<std::string, std::string>> &outAd
             continue;
         if (ifa->ifa_flags)
             if (ifa->ifa_addr->sa_family == AF_INET) { // check it is IP4
+                bool hasBroadcast = ifa->ifa_flags & IFF_BROADCAST;
+
+                char bcastAddrStr[INET_ADDRSTRLEN];
+                auto bcastAddr = ((sockaddr_in *)ifa->ifa_ifu.ifu_broadaddr)->sin_addr;
+                inet_ntop(AF_INET, &bcastAddr, bcastAddrStr, INET_ADDRSTRLEN);
                 // is a valid IP4 Address
                 tmpAddrPtr = &((sockaddr_in *)ifa->ifa_addr)->sin_addr;
                 char addressBuffer[INET_ADDRSTRLEN];
                 inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
-                outAddrs.push_back({addressBuffer,ifa->ifa_name});
+                outAddrs.push_back({ addressBuffer, ifa->ifa_name });
+                LOG_CRITICAL("name:{} addr:{} hasbcast:{} bcast:{}", ifa->ifa_name, addressBuffer, hasBroadcast, bcastAddrStr);
             }
     }
     if (ifAddrStruct != NULL)

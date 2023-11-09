@@ -20,6 +20,7 @@
 #include <io/state.h>
 #include <net/functions.h>
 #include <net/state.h>
+#include <netinet/in.h>
 #include <np/common.h>
 #include <sys/socket.h>
 #include <util/log.h>
@@ -33,7 +34,7 @@ bool init(NetState &state) {
 
 void adhocAuthThread(EmuEnvState *emuenv) {
     const int recvSocket = socket(AF_INET, SOCK_DGRAM, 0);
-    const int sendSocket = socket(AF_INET, SOCK_DGRAM, 0);
+    // const int sendSocket = socket(AF_INET, SOCK_DGRAM, 0);
 
     sockaddr_in bindAddr = {};
     bindAddr.sin_port = htons(33333);
@@ -54,9 +55,22 @@ void adhocAuthThread(EmuEnvState *emuenv) {
         socklen_t addrLen;
 
         do {
-            bytes = recvfrom(recvSocket, buf, sizeof(buf), 0, &addr, &addrLen);
-            LOG_TRACE("recvfrom auth ret = {}", bytes);
-        } while (bytes < 1);
+            sockaddr tmp_addr;
+            socklen_t tmp_addrLen = sizeof(tmp_addr);
+            memset(buf, 0, sizeof(buf));
+            int tmp_bytes = recvfrom(recvSocket, buf, sizeof(buf), 0, &tmp_addr, &tmp_addrLen);
+            if (tmp_bytes > 0) {
+                char addrStr[17];
+                inet_ntop(AF_INET, &((sockaddr_in *)&tmp_addr)->sin_addr, addrStr, sizeof(addrStr));
+                LOG_CRITICAL("Received {} bytes from {}", tmp_bytes, addrStr);
+
+                memcpy(&addr, &tmp_addr, sizeof(addr));
+                memcpy(&addrLen, &tmp_addrLen, sizeof(addrLen));
+
+                break;
+            }
+            bytes = tmp_bytes;
+        } while (bytes > -1);
 
         if (std::string_view(buf) == "Hello, tell me about you c:") {
             LOG_CRITICAL("Received about request");
@@ -82,10 +96,13 @@ void adhocAuthThread(EmuEnvState *emuenv) {
             std::fill(info.padding, info.padding + sizeof(info.padding), 0);
 
             // Basically reply with the info of this instance
-            if (sendto(sendSocket, &info, sizeof(info), 0, &addr, addrLen) < 0) {
+            auto res = sendto(recvSocket, &info, sizeof(info), 0, &addr, addrLen);
+            if (res < 0) {
                 char addrStr[17];
-                inet_ntop(AF_INET, &((sockaddr_in *)&addr)->sin_addr, addrStr, sizeof(addr));
-                LOG_CRITICAL("Could not send own peer adhoc info to {}", addrStr);
+                inet_ntop(AF_INET, &((sockaddr_in *)&addr)->sin_addr, addrStr, sizeof(addrStr));
+                auto port = ntohs(((sockaddr_in *)&addr)->sin_port);
+                LOG_CRITICAL("Could not send own peer adhoc info to {}:{}, res = {}", addrStr, port, res);
+                assert(false);
             }
         }
     }

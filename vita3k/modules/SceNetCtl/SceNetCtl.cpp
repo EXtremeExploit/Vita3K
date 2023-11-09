@@ -52,6 +52,7 @@ EXPORT(int, sceNetCtlAdhocDisconnect) {
         emuenv.netctl.adhocAuthThread.join();
 
     emuenv.netctl.inAdhocMode = false;
+    emuenv.netctl.adhocPeers.clear();
 
     return UNIMPLEMENTED();
 }
