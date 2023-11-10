@@ -58,18 +58,17 @@ void adhocAuthThread(EmuEnvState *emuenv) {
             sockaddr tmp_addr;
             socklen_t tmp_addrLen = sizeof(tmp_addr);
             memset(buf, 0, sizeof(buf));
-            int tmp_bytes = recvfrom(recvSocket, buf, sizeof(buf), 0, &tmp_addr, &tmp_addrLen);
-            if (tmp_bytes > 0) {
+            int bytes = recvfrom(recvSocket, buf, sizeof(buf), 0, &tmp_addr, &tmp_addrLen);
+            if (bytes > 0) {
                 char addrStr[17];
                 inet_ntop(AF_INET, &((sockaddr_in *)&tmp_addr)->sin_addr, addrStr, sizeof(addrStr));
-                LOG_CRITICAL("Received {} bytes from {}", tmp_bytes, addrStr);
+                LOG_CRITICAL("Received {} bytes from {}", bytes, addrStr);
 
                 memcpy(&addr, &tmp_addr, sizeof(addr));
                 memcpy(&addrLen, &tmp_addrLen, sizeof(addrLen));
 
                 break;
             }
-            bytes = tmp_bytes;
         } while (true);
 
         if (std::string_view(buf) == "Hello, tell me about you c:") {

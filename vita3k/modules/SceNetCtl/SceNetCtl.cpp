@@ -47,12 +47,15 @@ EXPORT(int, sceNetCtlAdhocDisconnect) {
     }
 
     emuenv.netctl.adhocShouldStop = true;
+    emuenv.netctl.inAdhocMatchingStatus = SCE_NETCTL_STATE_FINALIZING;
 
     if (emuenv.netctl.adhocAuthThread.joinable())
         emuenv.netctl.adhocAuthThread.join();
 
     emuenv.netctl.inAdhocMatchingMode = false;
     emuenv.netctl.adhocPeers.clear();
+
+    emuenv.netctl.inAdhocMatchingStatus = SCE_NETCTL_STATE_DISCONNECTED;
 
     return UNIMPLEMENTED();
 }
@@ -95,8 +98,8 @@ EXPORT(int, sceNetCtlAdhocGetState, int *state) {
         return RET_ERROR(SCE_NET_CTL_ERROR_INVALID_ADDR);
     }
 
-    *state = SCE_NETCTL_STATE_CONNECTED;
-    return STUBBED("state = SCE_NETCTL_STATE_CONNECTED");
+    *state = emuenv.netctl.inAdhocMatchingStatus;
+    return 0;
 }
 
 EXPORT(int, sceNetCtlAdhocRegisterCallback, Ptr<void> func, Ptr<void> arg, int *cid) {
