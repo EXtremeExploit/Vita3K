@@ -1142,25 +1142,40 @@ void draw_settings_dialog(GuiState &gui, EmuEnvState &emuenv) {
         ImGui::Spacing();
 
         std::vector<const char *> addrsSelect;
-        std::vector<std::pair<std::string, std::string>> addrs;
+        std::vector<const char *> baddrsSelect;
+        std::vector<net_utils::AssignedAddr> addrs;
         net_utils::getAllAssignedAddrs(addrs);
 
-        std::vector<std::string*> holder;
+        std::vector<std::string *> holder;
+        std::vector<std::string *> broadcastHolder;
 
         for (auto &addr : addrs) {
-            const auto a = new std::string(addr.first + " (" + addr.second + ")");
+            const auto a = new std::string(addr.addr + " (" + addr.name + ")");
             holder.emplace_back(a);
             addrsSelect.emplace_back(a->c_str());
+
+            const auto b = new std::string(addr.bcast + " (" + addr.name + ")");
+            broadcastHolder.emplace_back(b);
+            baddrsSelect.emplace_back(b->c_str());
         }
 
-        ImGui::Combo("Adhoc Address", &emuenv.cfg.adhoc_addr, addrsSelect.data(), static_cast<int>(addrs.size()));
+        ImGui::Combo("Adhoc Address", &emuenv.cfg.adhoc_addr, addrsSelect.data(), static_cast<int>(addrsSelect.size()));
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Select which Address to use in adhoc.");
+
+        ImGui::BeginDisabled();
+        ImGui::Combo("Adhoc Broadcast Address", &emuenv.cfg.adhoc_addr, baddrsSelect.data(), static_cast<int>(baddrsSelect.size()));
+        ImGui::EndDisabled();
 
         for (auto &h : holder) {
             delete h;
         }
+
+        for (auto &h : broadcastHolder) {
+            delete h;
+        }
         holder.clear();
+        broadcastHolder.clear();
 
         // HTTP
         ImGui::Spacing();

@@ -51,7 +51,7 @@ EXPORT(int, sceNetCtlAdhocDisconnect) {
     if (emuenv.netctl.adhocAuthThread.joinable())
         emuenv.netctl.adhocAuthThread.join();
 
-    emuenv.netctl.inAdhocMode = false;
+    emuenv.netctl.inAdhocMatchingMode = false;
     emuenv.netctl.adhocPeers.clear();
 
     return UNIMPLEMENTED();
@@ -363,14 +363,14 @@ EXPORT(int, sceNetCtlAdhocGetInAddr, SceNetInAddr *inaddr) {
         return RET_ERROR(SCE_NET_CTL_ERROR_INVALID_ADDR);
     }
 
-    std::vector<std::pair<std::string, std::string>> addrs;
+    std::vector<net_utils::AssignedAddr> addrs;
     net_utils::getAllAssignedAddrs(addrs);
 
     if (addrs.size() == 1) { // We only have loopback :C
         LOG_WARN_ONCE("loopback address was the only found addr");
     }
 
-    const auto addr = addrs[emuenv.cfg.adhoc_addr].first.c_str();
+    const auto addr = addrs[emuenv.cfg.adhoc_addr].addr.c_str();
 
     inet_pton(AF_INET, addr, &inaddr->s_addr);
 

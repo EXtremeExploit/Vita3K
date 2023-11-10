@@ -41,6 +41,13 @@ struct ProgressState {
     bool download = true;
     bool pause = false;
 };
+
+struct AssignedAddr {
+    std::string name; // Name of the interface
+    std::string addr; // Assigned address 
+    std::string bcast; // Broadcast address of the interface
+};
+
 typedef const std::function<ProgressState *(float, uint64_t)> &ProgressCallback;
 typedef std::pair<uint64_t, ProgressCallback> CallbackData;
 
@@ -59,5 +66,5 @@ bool parseResponse(const std::string &response, SceRequestResponse &reqres);
 bool socketSetBlocking(int sockfd, bool blocking);
 
 // First key in pair is address in string form, the second is interface name
-void getAllAssignedAddrs(std::vector<std::pair<std::string,std::string>> &outAddrs);
+void getAllAssignedAddrs(std::vector<AssignedAddr> &outAddrs);
 } // namespace net_utils

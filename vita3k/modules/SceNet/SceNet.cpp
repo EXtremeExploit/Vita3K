@@ -19,15 +19,17 @@
 #include "util/log.h"
 
 #include <arpa/inet.h>
-#include <cstdio>
 #include <iterator>
 #include <kernel/state.h>
 #include <net/state.h>
 #include <net/types.h>
+#include <netinet/in.h>
 #include <sys/socket.h>
 #include <util/lock_and_find.h>
+#include <util/net_utils.h>
 
 #include <chrono>
+#include <cstdio>
 #include <thread>
 
 #include <util/tracy.h>
@@ -452,7 +454,7 @@ EXPORT(int, sceNetRecvfrom, int sid, void *buf, unsigned int len, int flags, Sce
     }
 
     const int ret = sock->recv_packet(buf, len, flags, from, fromlen);
-    if (emuenv.netctl.inAdhocMode) {
+    if (emuenv.netctl.inAdhocMatchingMode) {
         auto peerIt = emuenv.netctl.adhocPeers.begin();
         for (; peerIt != emuenv.netctl.adhocPeers.end(); peerIt++) {
             if (peerIt->addr.s_addr == ((SceNetSockaddrIn *)&from)->sin_addr.s_addr) {
@@ -577,6 +579,27 @@ EXPORT(int, sceNetSendto, int sid, const void *msg, unsigned int len, int flags,
     if (!sock) {
         return RET_ERROR(SCE_NET_EBADF);
     }
+
+    if (emuenv.netctl.inAdhocMatchingMode) {
+        SceNetSockaddrIn *toIn = (SceNetSockaddrIn *)to;
+        sockaddr_in *sin = (sockaddr_in *)&toIn->sin_addr;
+
+        char addr[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, sin, addr, sizeof(addr));
+        if (std::string_view(addr) == "255.255.255.255") {
+            std::vector<net_utils::AssignedAddr> addrs;
+            net_utils::getAllAssignedAddrs(addrs);
+
+            if (addrs.size() == 1) { // We only have loopback :C
+                LOG_WARN_ONCE("loopback address was the only found addr");
+            }
+
+            const auto bcast = addrs[emuenv.cfg.adhoc_addr].bcast.c_str();
+            LOG_TRACE("Replaced 255.255.255.255 to {}", bcast);
+            inet_pton(AF_INET, bcast, sin);
+        }
+    }
+
     return sock->send_packet(msg, len, flags, to, tolen);
 }
 

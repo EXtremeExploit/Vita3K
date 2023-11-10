@@ -466,7 +466,7 @@ bool download_file(const std::string &url, const std::string &output_file_path, 
     return res == CURLE_OK;
 }
 
-void getAllAssignedAddrs(std::vector<std::pair<std::string, std::string>> &outAddrs) {
+void getAllAssignedAddrs(std::vector<AssignedAddr> &outAddrs) {
     outAddrs.clear();
     outAddrs.push_back({ "127.0.0.1", "lo" });
 #ifdef _WIN32
@@ -508,8 +508,7 @@ void getAllAssignedAddrs(std::vector<std::pair<std::string, std::string>> &outAd
                 tmpAddrPtr = &((sockaddr_in *)ifa->ifa_addr)->sin_addr;
                 char addressBuffer[INET_ADDRSTRLEN];
                 inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
-                outAddrs.push_back({ addressBuffer, ifa->ifa_name });
-                LOG_CRITICAL("name:{} addr:{} hasbcast:{} bcast:{}", ifa->ifa_name, addressBuffer, hasBroadcast, bcastAddrStr);
+                outAddrs.push_back({ ifa->ifa_name, addressBuffer, bcastAddrStr });
             }
     }
     if (ifAddrStruct != NULL)

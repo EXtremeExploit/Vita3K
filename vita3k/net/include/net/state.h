@@ -167,7 +167,7 @@ struct NetCtlState {
     std::array<SceNetCtlCallback, 8> adhocCallbacks;
     std::array<SceNetCtlCallback, 8> callbacks;
     bool inited = false;
-    bool inAdhocMode = false;
+    bool inAdhocMatchingMode = false;
     bool adhocShouldStop = false;
     std::vector<SceNetCtlAdhocPeerInfo> adhocPeers;
     std::thread adhocAuthThread;
