@@ -70,7 +70,7 @@ void adhocAuthThread(EmuEnvState *emuenv) {
                 break;
             }
             bytes = tmp_bytes;
-        } while (bytes > -1);
+        } while (true);
 
         if (std::string_view(buf) == "Hello, tell me about you c:") {
             LOG_CRITICAL("Received about request");
