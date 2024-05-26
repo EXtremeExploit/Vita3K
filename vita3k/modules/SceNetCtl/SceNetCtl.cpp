@@ -46,14 +46,6 @@ EXPORT(int, sceNetCtlAdhocDisconnect) {
         return RET_ERROR(SCE_NET_CTL_ERROR_NOT_INITIALIZED);
     }
 
-    emuenv.netctl.adhocShouldStop = true;
-    emuenv.netctl.inAdhocMatchingStatus = SCE_NETCTL_STATE_FINALIZING;
-
-    emuenv.netctl.inAdhocMatchingMode = false;
-    emuenv.netctl.adhocPeers.clear();
-
-    emuenv.netctl.inAdhocMatchingStatus = SCE_NETCTL_STATE_DISCONNECTED;
-
     return UNIMPLEMENTED();
 }
 
@@ -95,7 +87,6 @@ EXPORT(int, sceNetCtlAdhocGetState, int *state) {
         return RET_ERROR(SCE_NET_CTL_ERROR_INVALID_ADDR);
     }
 
-    *state = emuenv.netctl.inAdhocMatchingStatus;
     return 0;
 }
 

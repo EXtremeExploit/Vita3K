@@ -16,20 +16,13 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 #include "SceNet.h"
-#include "util/log.h"
 
-#include <arpa/inet.h>
-#include <iterator>
 #include <kernel/state.h>
 #include <net/state.h>
 #include <net/types.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
 #include <util/lock_and_find.h>
-#include <util/net_utils.h>
 
 #include <chrono>
-#include <cstdio>
 #include <thread>
 
 #include <util/tracy.h>

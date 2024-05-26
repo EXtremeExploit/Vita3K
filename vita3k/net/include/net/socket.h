@@ -64,7 +64,6 @@ struct Socket {
 // udp, tcp
 struct PosixSocket : public Socket {
     abs_socket sock;
-    int sockType;
 
     int sockopt_so_reuseport = 0;
     int sockopt_so_onesbcast = 0;

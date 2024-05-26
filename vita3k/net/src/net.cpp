@@ -15,20 +15,9 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-#include <emuenv/app_util.h>
-#include <emuenv/state.h>
-#include <io/state.h>
 #include <net/functions.h>
 #include <net/state.h>
-#include <netinet/in.h>
-#include <np/common.h>
-#include <sys/socket.h>
-#include <util/log.h>
-
-#include <cstring>
-#include <unistd.h>
 
 bool init(NetState &state) {
     return true;
 }
-
