@@ -13,7 +13,7 @@ add_library(
 )
 
 target_include_directories(net PUBLIC include)
-target_link_libraries(net PUBLIC mem rtc emuenv io)
+target_link_libraries(net PUBLIC mem)
 if (WIN32)
     target_link_libraries(net PRIVATE winsock)
 endif()

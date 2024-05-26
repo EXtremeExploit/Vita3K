@@ -454,64 +454,6 @@ EXPORT(int, sceNetRecvfrom, int sid, void *buf, unsigned int len, int flags, Sce
     }
 
     const int ret = sock->recv_packet(buf, len, flags, from, fromlen);
-    if (emuenv.netctl.inAdhocMatchingMode) {
-        auto peerIt = emuenv.netctl.adhocPeers.begin();
-        for (; peerIt != emuenv.netctl.adhocPeers.end(); peerIt++) {
-            if (peerIt->addr.s_addr == ((SceNetSockaddrIn *)&from)->sin_addr.s_addr) {
-                break;
-            }
-        }
-
-        // If the peer is already in the list, update the last recv time
-        if (peerIt != emuenv.netctl.adhocPeers.end()) {
-            LOG_CRITICAL("IP is in adhocPeers");
-            peerIt->lastRecv = rtc_get_ticks(emuenv.kernel.base_tick.tick) - emuenv.kernel.start_tick;
-            return ret;
-        }
-
-        LOG_CRITICAL("IP not in adhocPeers");
-
-        int reqSocket = socket(AF_INET, SOCK_DGRAM, 0);
-
-        sockaddr_in bindAddr = {};
-        bindAddr.sin_port = htons(33334);
-        if (bind(reqSocket, (sockaddr *)&bindAddr, sizeof(bindAddr)) < 0) {
-            LOG_CRITICAL("Could not bind adhoc recv socket to port 33334. Adhoc will not work");
-        }
-
-        sockaddr_in dst_in;
-        dst_in.sin_family = AF_INET;
-        dst_in.sin_port = htons(33333);
-
-        SceNetSockaddrIn *fromIn = (SceNetSockaddrIn *)from;
-
-        memcpy(&dst_in.sin_addr, &fromIn->sin_addr, 4);
-
-        char addrStr[17];
-        inet_ntop(AF_INET, &dst_in.sin_addr, addrStr, sizeof(addrStr));
-
-        const char msg[28] = "Hello, tell me about you c:";
-        sendto(reqSocket, msg, sizeof(msg), 0, (sockaddr *)&dst_in, sizeof(dst_in));
-
-        char buf[1024];
-        int bytes = 0;
-        while (bytes != sizeof(SceNetCtlAdhocPeerInfo)) {
-            bytes += recv(reqSocket, buf, sizeof(buf), 0);
-            LOG_CRITICAL("adhoc auth: Received {} bytes so far", bytes);
-        }
-
-        SceNetCtlAdhocPeerInfo peerInfo;
-        memcpy(&peerInfo, buf, sizeof(peerInfo));
-        LOG_CRITICAL("Sent about request reply, username is {}", peerInfo.username);
-
-        peerInfo.lastRecv = rtc_get_ticks(emuenv.kernel.base_tick.tick) - emuenv.kernel.start_tick;
-        peerInfo.addr = {
-            .s_addr = ((SceNetSockaddrIn *)&from)->sin_addr.s_addr
-        };
-        emuenv.netctl.adhocPeers.push_back(peerInfo);
-
-        close(reqSocket);
-    }
     return ret;
 }
 
@@ -578,26 +520,6 @@ EXPORT(int, sceNetSendto, int sid, const void *msg, unsigned int len, int flags,
     auto sock = lock_and_find(sid, emuenv.net.socks, emuenv.kernel.mutex);
     if (!sock) {
         return RET_ERROR(SCE_NET_EBADF);
-    }
-
-    if (emuenv.netctl.inAdhocMatchingMode) {
-        SceNetSockaddrIn *toIn = (SceNetSockaddrIn *)to;
-        sockaddr_in *sin = (sockaddr_in *)&toIn->sin_addr;
-
-        char addr[INET_ADDRSTRLEN];
-        inet_ntop(AF_INET, sin, addr, sizeof(addr));
-        if (std::string_view(addr) == "255.255.255.255") {
-            std::vector<net_utils::AssignedAddr> addrs;
-            net_utils::getAllAssignedAddrs(addrs);
-
-            if (addrs.size() == 1) { // We only have loopback :C
-                LOG_WARN_ONCE("loopback address was the only found addr");
-            }
-
-            const auto bcast = addrs[emuenv.cfg.adhoc_addr].bcast.c_str();
-            LOG_TRACE("Replaced 255.255.255.255 to {}", bcast);
-            inet_pton(AF_INET, bcast, sin);
-        }
     }
 
     return sock->send_packet(msg, len, flags, to, tolen);

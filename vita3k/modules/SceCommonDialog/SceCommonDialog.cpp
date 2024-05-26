@@ -33,8 +33,6 @@
 #include <util/tracy.h>
 TRACY_MODULE_NAME(SceCommonDialog);
 
-void adhocAuthThread(EmuEnvState *emuenv);
-
 template <>
 std::string to_debug_str<SceMsgDialogProgressBarTarget>(const MemState &mem, SceMsgDialogProgressBarTarget type) {
     switch (type) {
@@ -513,16 +511,6 @@ EXPORT(SceCommonDialogStatus, sceNetCheckDialogGetStatus) {
 
 EXPORT(int, sceNetCheckDialogInit, SceNetCheckDialogParam *param) {
     TRACY_FUNC(sceNetCheckDialogInit);
-    if (param->mode == SCE_NETCHECK_DIALOG_MODE_ADHOC_CONN) {
-        // This is an INSANE stub to keep track of the adresses in adhoc mode needed by netctl to know who is in the network
-        emuenv.netctl.inAdhocMatchingMode = true;
-        emuenv.netctl.inAdhocMatchingStatus = SCE_NETCTL_STATE_CONNECTING;
-
-        emuenv.netctl.adhocShouldStop = false;
-
-        emuenv.netctl.adhocAuthThread = std::thread(adhocAuthThread, &emuenv);
-        emuenv.netctl.inAdhocMatchingStatus = SCE_NETCTL_STATE_CONNECTED;
-    }
     emuenv.common_dialog.type = NETCHECK_DIALOG;
     emuenv.common_dialog.status = SCE_COMMON_DIALOG_STATUS_FINISHED;
 

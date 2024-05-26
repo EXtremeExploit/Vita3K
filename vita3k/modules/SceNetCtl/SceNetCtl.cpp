@@ -49,9 +49,6 @@ EXPORT(int, sceNetCtlAdhocDisconnect) {
     emuenv.netctl.adhocShouldStop = true;
     emuenv.netctl.inAdhocMatchingStatus = SCE_NETCTL_STATE_FINALIZING;
 
-    if (emuenv.netctl.adhocAuthThread.joinable())
-        emuenv.netctl.adhocAuthThread.join();
-
     emuenv.netctl.inAdhocMatchingMode = false;
     emuenv.netctl.adhocPeers.clear();
 

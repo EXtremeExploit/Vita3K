@@ -171,6 +171,5 @@ struct NetCtlState {
     SceNetCtlState inAdhocMatchingStatus = SceNetCtlState::SCE_NETCTL_STATE_DISCONNECTED;
     bool adhocShouldStop = false;
     std::vector<SceNetCtlAdhocPeerInfo> adhocPeers;
-    std::thread adhocAuthThread;
     std::mutex mutex;
 };
